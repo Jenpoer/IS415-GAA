@@ -2,8 +2,4 @@
 title: "About"
 ---
 
-About this site
-
-```{r}
-1 + 1
-```
+After uninstalling and re-installing R and RStudio 3 times, I finally got this website running.
