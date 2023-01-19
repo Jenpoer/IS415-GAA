@@ -42,7 +42,7 @@ wp_nga <- read_csv("data/aspatial/WPDX.csv") %>%
 saveRDS(wp_nga, file = "data/aspatial/wpNGA.rds")
 ```
 
-# Data Preprocessing
+# Data Preprocessing (Task 1)
 
 ## Converting Aspatial Data into Geospatial
 
@@ -63,4 +63,94 @@ wp_sf <- wp_sf %>%
   st_transform(crs = 26392)
 ```
 
-## 
+# Water Point Analysis
+
+## Calculate proportion of Functional and Non-Functional Water Points at LGA Level
+
+Check the column that contains if water point is functional or not. By using unique(), we can extract the unique values of each column.
+
+```{r}
+unique(wp_sf$`#status_clean`)
+```
+
+Get the number of functional water points per LGA
+
+```{r}
+functional <- wp_sf %>% filter(`#status_clean` == "Functional") 
+WP_Functional <- lengths(st_intersects(geoNGA, functional))
+```
+
+Get the number of non-functional water points per LGA
+
+```{r}
+non_functional <- wp_sf %>% filter(`#status_clean` == "Non-Functional")
+WP_Non_Functional <- lengths(st_intersects(geoNGA, non_functional))
+```
+
+Get the total number of water points per LGA
+
+```{r}
+WP_Total <- lengths(st_intersects(geoNGA, wp_sf))
+```
+
+### Combining aspatial and spatial data into simple feature tibble
+
+Create a copy of the geoNGA data frame with WP_Functional, WP_Non_Functional, and WP_Total
+
+```{r}
+nga_combined <- tibble(geoNGA, WP_Functional, WP_Non_Functional, WP_Total)
+```
+
+Create columns:
+
+-   WP_Functional_Proportion: Proportion of functional water points (number of functional water points / total number of water points)
+
+-   WP_Non_Functional_Proportion: Proportion of non-functional water points (number of non-functional water points / total number of water points)
+
+```{r}
+nga_combined <- nga_combined %>%
+  mutate(`WP_Functional_Proportion` = `WP_Functional`/`WP_Total`,
+         `WP_Non_Functional_Proportion` = `WP_Non_Functional`/`WP_Total`)
+```
+
+Replace NaN values (caused by 0 / 0) in the new columns with 0
+
+```{r}
+nga_combined$`WP_Functional_Proportion`[is.na(nga_combined$`WP_Functional_Proportion`)] = 0
+
+nga_combined$`WP_Non_Functional_Proportion`[is.na(nga_combined$`WP_Non_Functional_Proportion`)] = 0
+```
+
+Display the first 5 rows of the new tibble
+
+```{r}
+head(nga_combined, n=5)
+```
+
+## Visualise distribution of water points with analytical plot
+
+**Plot distribution of water points by LGA**
+
+```{r}
+ggplot(data=nga_combined, 
+       aes(x= as.numeric(`WP_Total`)))+
+  geom_histogram(bins=20, 
+                 color="black", 
+                 fill="light blue") +
+  labs(title = "Distribution of Total Water Points",
+       x = "Number of Water Points",
+       y = "Number of LGAs")
+```
+
+From the histogram, we can see that most LGAs have around 100-200 water points.
+
+**Scatter plot between proportion of functional water points vs. number of total water points**
+
+```{r}
+ggplot(data=nga_combined, 
+       aes(y = `WP_Total`, 
+           x= as.numeric(`WP_Functional_Proportion`)))+
+  geom_point(color="violet") +
+  labs(x = "Proportion Functional",
+       y = "Total Water Points")
+```

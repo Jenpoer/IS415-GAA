@@ -195,11 +195,18 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <li><a href="#geospatial-data" id="toc-geospatial-data" class="nav-link" data-scroll-target="#geospatial-data">Geospatial Data</a></li>
   <li><a href="#aspatial-data" id="toc-aspatial-data" class="nav-link" data-scroll-target="#aspatial-data">Aspatial Data</a></li>
   </ul></li>
-  <li><a href="#data-preprocessing" id="toc-data-preprocessing" class="nav-link" data-scroll-target="#data-preprocessing">Data Preprocessing</a>
+  <li><a href="#data-preprocessing-task-1" id="toc-data-preprocessing-task-1" class="nav-link" data-scroll-target="#data-preprocessing-task-1">Data Preprocessing (Task 1)</a>
   <ul class="collapse">
   <li><a href="#converting-aspatial-data-into-geospatial" id="toc-converting-aspatial-data-into-geospatial" class="nav-link" data-scroll-target="#converting-aspatial-data-into-geospatial">Converting Aspatial Data into Geospatial</a></li>
   <li><a href="#projection-transformation" id="toc-projection-transformation" class="nav-link" data-scroll-target="#projection-transformation">Projection transformation</a></li>
-  <li><a href="#section" id="toc-section" class="nav-link" data-scroll-target="#section"></a></li>
+  </ul></li>
+  <li><a href="#water-point-analysis" id="toc-water-point-analysis" class="nav-link" data-scroll-target="#water-point-analysis">Water Point Analysis</a>
+  <ul class="collapse">
+  <li><a href="#calculate-proportion-of-functional-and-non-functional-water-points-at-lga-level" id="toc-calculate-proportion-of-functional-and-non-functional-water-points-at-lga-level" class="nav-link" data-scroll-target="#calculate-proportion-of-functional-and-non-functional-water-points-at-lga-level">Calculate proportion of Functional and Non-Functional Water Points at LGA Level</a>
+  <ul class="collapse">
+  <li><a href="#combining-aspatial-and-spatial-data-into-simple-feature-tibble" id="toc-combining-aspatial-and-spatial-data-into-simple-feature-tibble" class="nav-link" data-scroll-target="#combining-aspatial-and-spatial-data-into-simple-feature-tibble">Combining aspatial and spatial data into simple feature tibble</a></li>
+  </ul></li>
+  <li><a href="#visualise-distribution-of-water-points-with-analytical-plot" id="toc-visualise-distribution-of-water-points-with-analytical-plot" class="nav-link" data-scroll-target="#visualise-distribution-of-water-points-with-analytical-plot">Visualise distribution of water points with analytical plot</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -277,8 +284,8 @@ Geodetic CRS:  WGS 84</code></pre>
 </div>
 </section>
 </section>
-<section id="data-preprocessing" class="level1">
-<h1>Data Preprocessing</h1>
+<section id="data-preprocessing-task-1" class="level1">
+<h1>Data Preprocessing (Task 1)</h1>
 <section id="converting-aspatial-data-into-geospatial" class="level2">
 <h2 class="anchored" data-anchor-id="converting-aspatial-data-into-geospatial">Converting Aspatial Data into Geospatial</h2>
 <div class="cell">
@@ -399,8 +406,106 @@ Geodetic CRS:  WGS 84
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_transform</span>(<span class="at">crs =</span> <span class="dv">26392</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="section" class="level2">
-<h2 class="anchored" data-anchor-id="section"></h2>
+</section>
+<section id="water-point-analysis" class="level1">
+<h1>Water Point Analysis</h1>
+<section id="calculate-proportion-of-functional-and-non-functional-water-points-at-lga-level" class="level2">
+<h2 class="anchored" data-anchor-id="calculate-proportion-of-functional-and-non-functional-water-points-at-lga-level">Calculate proportion of Functional and Non-Functional Water Points at LGA Level</h2>
+<p>Check the column that contains if water point is functional or not. By using unique(), we can extract the unique values of each column.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(wp_sf<span class="sc">$</span><span class="st">`</span><span class="at">#status_clean</span><span class="st">`</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] NA                                 "Functional"                      
+[3] "Abandoned/Decommissioned"         "Non-Functional"                  
+[5] "Functional but not in use"        "Functional but needs repair"     
+[7] "Abandoned"                        "Non functional due to dry season"
+[9] "Non-Functional due to dry season"</code></pre>
+</div>
+</div>
+<p>Get the number of functional water points per LGA</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>functional <span class="ot">&lt;-</span> wp_sf <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="st">`</span><span class="at">#status_clean</span><span class="st">`</span> <span class="sc">==</span> <span class="st">"Functional"</span>) </span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>WP_Functional <span class="ot">&lt;-</span> <span class="fu">lengths</span>(<span class="fu">st_intersects</span>(geoNGA, functional))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Get the number of non-functional water points per LGA</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>non_functional <span class="ot">&lt;-</span> wp_sf <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="st">`</span><span class="at">#status_clean</span><span class="st">`</span> <span class="sc">==</span> <span class="st">"Non-Functional"</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>WP_Non_Functional <span class="ot">&lt;-</span> <span class="fu">lengths</span>(<span class="fu">st_intersects</span>(geoNGA, non_functional))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Get the total number of water points per LGA</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>WP_Total <span class="ot">&lt;-</span> <span class="fu">lengths</span>(<span class="fu">st_intersects</span>(geoNGA, wp_sf))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="combining-aspatial-and-spatial-data-into-simple-feature-tibble" class="level3">
+<h3 class="anchored" data-anchor-id="combining-aspatial-and-spatial-data-into-simple-feature-tibble">Combining aspatial and spatial data into simple feature tibble</h3>
+<p>Create a copy of the geoNGA data frame with WP_Functional, WP_Non_Functional, and WP_Total</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>nga_combined <span class="ot">&lt;-</span> <span class="fu">tibble</span>(geoNGA, WP_Functional, WP_Non_Functional, WP_Total)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Create columns:</p>
+<ul>
+<li><p>WP_Functional_Proportion: Proportion of functional water points (number of functional water points / total number of water points)</p></li>
+<li><p>WP_Non_Functional_Proportion: Proportion of non-functional water points (number of non-functional water points / total number of water points)</p></li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>nga_combined <span class="ot">&lt;-</span> nga_combined <span class="sc">%&gt;%</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="st">`</span><span class="at">WP_Functional_Proportion</span><span class="st">`</span> <span class="ot">=</span> <span class="st">`</span><span class="at">WP_Functional</span><span class="st">`</span><span class="sc">/</span><span class="st">`</span><span class="at">WP_Total</span><span class="st">`</span>,</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">WP_Non_Functional_Proportion</span><span class="st">`</span> <span class="ot">=</span> <span class="st">`</span><span class="at">WP_Non_Functional</span><span class="st">`</span><span class="sc">/</span><span class="st">`</span><span class="at">WP_Total</span><span class="st">`</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Replace NaN values (caused by 0 / 0) in the new columns with 0</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>nga_combined<span class="sc">$</span><span class="st">`</span><span class="at">WP_Functional_Proportion</span><span class="st">`</span>[<span class="fu">is.na</span>(nga_combined<span class="sc">$</span><span class="st">`</span><span class="at">WP_Functional_Proportion</span><span class="st">`</span>)] <span class="ot">=</span> <span class="dv">0</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>nga_combined<span class="sc">$</span><span class="st">`</span><span class="at">WP_Non_Functional_Proportion</span><span class="st">`</span>[<span class="fu">is.na</span>(nga_combined<span class="sc">$</span><span class="st">`</span><span class="at">WP_Non_Functional_Proportion</span><span class="st">`</span>)] <span class="ot">=</span> <span class="dv">0</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Display the first 5 rows of the new tibble</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(nga_combined, <span class="at">n=</span><span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 11
+  shapeName Level shapeID      shape…¹ shape…²                  geometry WP_Fu…³
+  &lt;chr&gt;     &lt;chr&gt; &lt;chr&gt;        &lt;chr&gt;   &lt;chr&gt;          &lt;MULTIPOLYGON [m]&gt;   &lt;int&gt;
+1 Aba North ADM2  NGA-ADM2-72… NGA     ADM2    (((548795.5 119641, 5486…       4
+2 Aba South ADM2  NGA-ADM2-72… NGA     ADM2    (((541412.3 122192.3, 54…      26
+3 Abadam    ADM2  NGA-ADM2-72… NGA     ADM2    (((1248985 1048169, 1247…       0
+4 Abaji     ADM2  NGA-ADM2-72… NGA     ADM2    (((510864.9 578541.6, 50…      22
+5 Abak      ADM2  NGA-ADM2-72… NGA     ADM2    (((594269 120968.5, 5943…      20
+# … with 4 more variables: WP_Non_Functional &lt;int&gt;, WP_Total &lt;int&gt;,
+#   WP_Functional_Proportion &lt;dbl&gt;, WP_Non_Functional_Proportion &lt;dbl&gt;, and
+#   abbreviated variable names ¹​shapeGroup, ²​shapeType, ³​WP_Functional</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="visualise-distribution-of-water-points-with-analytical-plot" class="level2">
+<h2 class="anchored" data-anchor-id="visualise-distribution-of-water-points-with-analytical-plot">Visualise distribution of water points with analytical plot</h2>
+<p><strong>Plot distribution of water points by LGA</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data=</span>nga_combined, </span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">aes</span>(<span class="at">x=</span> <span class="fu">as.numeric</span>(<span class="st">`</span><span class="at">WP_Total</span><span class="st">`</span>)))<span class="sc">+</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins=</span><span class="dv">20</span>, </span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>                 <span class="at">color=</span><span class="st">"black"</span>, </span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>                 <span class="at">fill=</span><span class="st">"light blue"</span>) <span class="sc">+</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Distribution of Total Water Points"</span>,</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">x =</span> <span class="st">"Number of Water Points"</span>,</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Number of LGAs"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="ICE2_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>From the histogram, we can see that most LGAs have around 100-200 water points.</p>
+<p><strong>Scatter plot between proportion of functional water points vs.&nbsp;number of total water points</strong></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data=</span>nga_combined, </span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">aes</span>(<span class="at">y =</span> <span class="st">`</span><span class="at">WP_Total</span><span class="st">`</span>, </span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>           <span class="at">x=</span> <span class="fu">as.numeric</span>(<span class="st">`</span><span class="at">WP_Functional_Proportion</span><span class="st">`</span>)))<span class="sc">+</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">color=</span><span class="st">"violet"</span>) <span class="sc">+</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Proportion Functional"</span>,</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Total Water Points"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="ICE2_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
 
 
 </section>
