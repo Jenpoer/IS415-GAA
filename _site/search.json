@@ -4,7 +4,7 @@
     "href": "about.html",
     "title": "About",
     "section": "",
-    "text": "After uninstalling and re-installing R and RStudio 3 times, I finally got this website running."
+    "text": "After uninstalling and re-installing R and RStudio 3 times, I finally got this website running.\nSometimes, when things go wrong, closing and reopening RStudio does the trick. If not, restart your computer."
   },
   {
     "objectID": "Hands-On-Exercises/chapter-02/HOE1.html",

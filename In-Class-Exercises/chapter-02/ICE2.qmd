@@ -42,7 +42,7 @@ wp_nga <- read_csv("data/aspatial/WPDX.csv") %>%
 saveRDS(wp_nga, file = "data/aspatial/wpNGA.rds")
 ```
 
-# Data Preprocessing (Task 1)
+# Data Preprocessing
 
 ## Converting Aspatial Data into Geospatial
 

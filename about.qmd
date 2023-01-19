@@ -3,3 +3,5 @@ title: "About"
 ---
 
 After uninstalling and re-installing R and RStudio 3 times, I finally got this website running.
+
+Sometimes, when things go wrong, closing and reopening RStudio does the trick. If not, restart your computer.
