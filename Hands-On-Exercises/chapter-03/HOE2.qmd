@@ -1,5 +1,5 @@
 ---
-title: "Hands-On Exercise 2: Chloropleth Mapping"
+title: "Hands-On Exercise 2: Choropleth Mapping"
 format: html
 execute: 
   message: false
@@ -7,10 +7,14 @@ execute:
 editor: visual
 ---
 
+::: callout-caution
+## Sorry, I couldn't finish this earlier because I had trouble with my R installation. I had to download an older version.
+:::
+
 # Import Packages
 
 ```{r}
-pacman::p_load(sf, tidyverse)
+pacman::p_load(sf, tidyverse, tmap)
 ```
 
 # Import Data
