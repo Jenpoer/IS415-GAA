@@ -39,18 +39,18 @@ wp_nga <- read_csv("data/aspatial/WPDX.csv") %>%
   filter(`#clean_country_name` == "Nigeria")
 ```
 
-```{r}
-saveRDS(wp_nga, file = "data/aspatial/wpNGA.rds")
-```
-
 # Data Preprocessing
 
 ## Converting Aspatial Data into Geospatial
+
+Convert [wkt](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry) field into sfc field (i.e. simple feature object) by using st_as_sfc() - to give structure.
 
 ```{r}
 wp_nga$Geometry = st_as_sfc(wp_nga$`New Georeferenced Column`)
 glimpse(wp_nga)
 ```
+
+We need to use 4326 because we want to put back the projection information first, as it is from aspatial data.
 
 ```{r}
 wp_sf <- st_sf(wp_nga, crs=4326)
@@ -59,9 +59,54 @@ wp_sf
 
 ## Projection transformation
 
+Transform from WGS84 to Nigeria's projected coordinate system.
+
 ```{r}
 wp_sf <- wp_sf %>%
   st_transform(crs = 26392)
+```
+
+## Geospatial Data Cleaning
+
+### Select necessary columns only
+
+```{r}
+nga <- nga %>% select(c(3:4, 8:9))
+```
+
+### Check for duplicate names
+
+```{r}
+duplicated_LGA <- nga$ADM2_EN[duplicated(nga$ADM2_EN)==TRUE]
+duplicated_LGA
+```
+
+There are 6 LGAs with the same name, but in different states.
+
+So, we plan to concatenate the state name to the duplicated names. First, we try to get the indices.
+
+```{r}
+duplicated_indices <- which(nga$ADM2_EN %in% duplicated_LGA)
+duplicated_indices
+```
+
+Then, we concatenate the state name to the duplicated names.
+
+```{r}
+for (ind in duplicated_indices) {
+  nga$ADM2_EN[ind] <- paste(nga$ADM2_EN[ind], nga$ADM1_EN[ind], sep=", ")
+}
+```
+
+Replace unknown values and rename columns
+
+```{r}
+wp_sf <- wp_sf %>%
+  rename(status_clean = '#status_clean') %>%
+  select(status_clean) %>%
+  mutate(status_clean = replace_na(
+    status_clean, "unknown"
+  ))
 ```
 
 # Water Point Analysis
@@ -71,35 +116,61 @@ wp_sf <- wp_sf %>%
 Check the column that contains if water point is functional or not. By using unique(), we can extract the unique values of each column.
 
 ```{r}
-unique(wp_sf$`#status_clean`)
+unique(wp_sf$`status_clean`)
 ```
 
 Get the number of functional water points per LGA
 
 ```{r}
-functional <- wp_sf %>% filter(`#status_clean` == "Functional") 
-WP_Functional <- lengths(st_intersects(geoNGA, functional))
+functional <- wp_sf %>% filter(`status_clean` %in% 
+                                 c("Functional", 
+                                   "Functional but not in use",
+                                   "Functional but needs repair")) 
+WP_Functional <- lengths(st_intersects(nga, functional))
 ```
 
 Get the number of non-functional water points per LGA
 
 ```{r}
-non_functional <- wp_sf %>% filter(`#status_clean` == "Non-Functional")
-WP_Non_Functional <- lengths(st_intersects(geoNGA, non_functional))
+non_functional <- wp_sf %>% filter(`status_clean` %in% 
+                                     c("Abandoned/Decommissioned",
+                                       "Non-Functional due to dry season",
+                                       "Non-Functional",
+                                       "Abandoned",
+                                       "Non functional due to dry season"))
+WP_Non_Functional <- lengths(st_intersects(nga, non_functional))
+```
+
+Get the unknown water points
+
+```{r}
+unknown <- wp_sf %>% filter(`status_clean` %in% 
+                                     c("unknown"))
+WP_Unknown <- lengths(st_intersects(nga, unknown))
 ```
 
 Get the total number of water points per LGA
 
 ```{r}
-WP_Total <- lengths(st_intersects(geoNGA, wp_sf))
+WP_Total <- lengths(st_intersects(nga, wp_sf))
 ```
 
 ### Combining aspatial and spatial data into simple feature tibble
 
-Create a copy of the geoNGA data frame with WP_Functional, WP_Non_Functional, and WP_Total
+Create a copy of the nga data frame with WP_Functional, WP_Non_Functional, WP_Unknown, and WP_Total
 
 ```{r}
-nga_combined <- tibble(geoNGA, WP_Functional, WP_Non_Functional, WP_Total)
+nga_combined <- nga %>%
+  mutate(WP_Functional) %>%
+  mutate(WP_Non_Functional) %>%
+  mutate(WP_Unknown) %>%
+  mutate(WP_Total)
+```
+
+Save as RDS
+
+```{r}
+saveRDS(nga_combined, file = "data/rds/NGA_wp.rds")
 ```
 
 Create columns:
@@ -130,17 +201,28 @@ head(nga_combined, n=5)
 
 ## Visualise distribution of water points with analytical plot
 
+**Plot the frequency table by status_clean**
+
+```{r}
+freq(wp_sf, input = "status_clean")
+```
+
 **Plot distribution of water points by LGA**
 
 ```{r}
 ggplot(data=nga_combined, 
-       aes(x= as.numeric(`WP_Total`)))+
+       aes(x=`WP_Total`))+
   geom_histogram(bins=20, 
                  color="black", 
                  fill="light blue") +
-  labs(title = "Distribution of Total Water Points",
-       x = "Number of Water Points",
-       y = "Number of LGAs")
+  geom_vline(aes(xintercept=mean(`WP_Total`, na.rm=T)),
+                 color="red",
+                 linetype="dashed",
+                 linewidth=0.8) +
+  ggtitle("Distribution of total water points by LGA") +
+  xlab("No. of water points") +
+  ylab("No. of\nLGAs") +
+  theme(axis.title.y=element_text(angle = 0))
 ```
 
 From the histogram, we can see that most LGAs have around 100-200 water points.
