@@ -1,6 +1,7 @@
 ---
 title: "In-Class Exercise 2: Thematic and Analytical Mapping"
 format: html
+date: "`r Sys.Date()`"
 execute: 
   message: false
   warning: false
