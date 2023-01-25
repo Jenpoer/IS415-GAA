@@ -17,6 +17,8 @@ website:
         menu: 
           - text: "Week 2"
             href: "In-Class-Exercises/chapter-02/ICE2.qmd"
+          - text: "Week 3"
+            href: "In-Class-Exercises/chapter-03/ICE3.qmd"
     right:
       - about.qmd
 

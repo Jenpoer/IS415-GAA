@@ -1,7 +1,7 @@
 ---
 title: "Hands-On Exercise 2: Choropleth Mapping"
 format: html
-date: "`r Sys.Date()`"
+date-modified: "`r Sys.Date()`"
 execute: 
   message: false
   warning: false
@@ -96,7 +96,7 @@ Save into RDS format
 write_rds(mpsz_pop2020, "data/mpszpop2020.rds")
 ```
 
-# Choropleth Mapping
+# Chloropleth Mapping
 
 ## Using qtm()
 

@@ -6,7 +6,6 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2023-01-25">
 
 <title>IS415-GAA - Hands-On Exercise 2: Choropleth Mapping</title>
 <style>
@@ -197,7 +196,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <li><a href="#import-packages" id="toc-import-packages" class="nav-link active" data-scroll-target="#import-packages">Import Packages</a></li>
   <li><a href="#import-data" id="toc-import-data" class="nav-link" data-scroll-target="#import-data">Import Data</a></li>
   <li><a href="#data-preprocessing" id="toc-data-preprocessing" class="nav-link" data-scroll-target="#data-preprocessing">Data Preprocessing</a></li>
-  <li><a href="#choropleth-mapping" id="toc-choropleth-mapping" class="nav-link" data-scroll-target="#choropleth-mapping">Choropleth Mapping</a>
+  <li><a href="#chloropleth-mapping" id="toc-chloropleth-mapping" class="nav-link" data-scroll-target="#chloropleth-mapping">Chloropleth Mapping</a>
   <ul class="collapse">
   <li><a href="#using-qtm" id="toc-using-qtm" class="nav-link" data-scroll-target="#using-qtm">Using qtm()</a></li>
   <li><a href="#using-tmap-attributes" id="toc-using-tmap-attributes" class="nav-link" data-scroll-target="#using-tmap-attributes">Using tmap attributes</a>
@@ -235,13 +234,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="quarto-title-meta">
 
     
+  
     <div>
-    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-heading">Modified</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">January 25, 2023</p>
+      <p class="date-modified">January 25, 2023</p>
     </div>
   </div>
-  
     
   </div>
   
@@ -363,8 +362,8 @@ $ DEPENDENCY       &lt;dbl&gt; 0.7446043, 0.7146341, 0.7666223, 0.7467181, 0.875
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">write_rds</span>(mpsz_pop2020, <span class="st">"data/mpszpop2020.rds"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="choropleth-mapping" class="level1">
-<h1>Choropleth Mapping</h1>
+<section id="chloropleth-mapping" class="level1">
+<h1>Chloropleth Mapping</h1>
 <section id="using-qtm" class="level2">
 <h2 class="anchored" data-anchor-id="using-qtm">Using qtm()</h2>
 <div class="cell">
