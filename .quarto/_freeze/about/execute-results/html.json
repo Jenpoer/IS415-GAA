@@ -1,7 +1,7 @@
 {
   "hash": "995f40b381da7aa32922ddfc9cb736d9",
   "result": {
-    "markdown": "---\ntitle: \"About\"\ndate-modified: \"2023-01-25\"\n---\n\n\nAfter uninstalling and re-installing R and RStudio 3 times, I finally got this website running.\n\nSometimes, when things go wrong, closing and reopening RStudio does the trick. If not, restart your computer.\n\nBleeding edge is not necessarily good. In fact, it can be an anti-pattern because the latest versions of technology might not be compatible. After a week of struggling with broken installation, I finally downgraded to R 4.2.1 and finally it's fine.\n",
+    "markdown": "---\ntitle: \"About\"\ndate-modified: \"2023-01-26\"\n---\n\n\nAfter uninstalling and re-installing R and RStudio 3 times, I finally got this website running.\n\nSometimes, when things go wrong, closing and reopening RStudio does the trick. If not, restart your computer.\n\nBleeding edge is not necessarily good. In fact, it can be an anti-pattern because the latest versions of technology might not be compatible. After a week of struggling with broken installation, I finally downgraded to R 4.2.1 and finally it's fine.\n",
     "supporting": [],
     "filters": [
       "rmarkdown/pagebreak.lua"
