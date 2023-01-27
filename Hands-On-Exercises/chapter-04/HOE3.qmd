@@ -1,0 +1,180 @@
+---
+title: "Hands-On Exercise 3: Spatial Point Patterns Analysis"
+format: html
+date: "27 January 2023"
+date-modified: "`r Sys.Date()`"
+execute: 
+  message: false
+  warning: false
+editor: visual
+---
+
+# Import packages
+
+```{r}
+pacman::p_load(maptools, sf, raster, spatstat, tmap)
+```
+
+# Importing Dataset
+
+## Spatial Data
+
+```{r}
+childcare_sf <- st_read("data/geospatial/childcare.geojson") %>%
+  st_transform(crs = 3414)
+```
+
+```{r}
+# Todo: sg_sf
+```
+
+```{r}
+mpsz_sf <- st_read(dsn = "../chapter-02/data/geospatial/master-plan-2014-subzone-boundary-web-shp",
+                   layer = "MP14_SUBZONE_WEB_PL")
+```
+
+## Retrieve referencing system information of geospatial data
+
+**Childcare**: EPSG 3414, Projection CRS SVY21
+
+```{r}
+st_crs(childcare_sf)
+```
+
+**MPSZ:** EPSG 9001, Projection CRS SVY21
+
+```{r}
+st_crs(mpsz_sf)
+```
+
+## Assign correct crs information
+
+**MPSZ**
+
+We only need to change the crs because it is already the correct projection.
+
+```{r}
+mpsz_sf <- st_set_crs(mpsz_sf, 3414)
+```
+
+# Mapping
+
+```{r}
+tmap_mode("plot")
+tm_shape(mpsz_sf) +
+  tm_polygons() +
+  tm_shape(childcare_sf) +  
+  tm_dots()
+```
+
+```{r}
+tmap_mode('view')
+tm_shape(childcare_sf)+
+  tm_dots()
+```
+
+```{r}
+tmap_mode("plot")
+```
+
+# Geospatial Data Wrangling
+
+## Conversion from sf's simple feature data frame to sp's Spatial\* class
+
+```{r}
+childcare <- as_Spatial(childcare_sf)
+mpsz <- as_Spatial(mpsz_sf)
+```
+
+```{r}
+summary(childcare)
+```
+
+```{r}
+summary(mpsz)
+```
+
+## Conversion from Spatial\* class to generic sp format (Spatial)
+
+```{r}
+childcare_sp <- as(childcare, "SpatialPoints")
+```
+
+```{r}
+childcare_sp
+```
+
+## Conversion from generic sp format to spatstat's ppp
+
+```{r}
+childcare_ppp <- as(childcare_sp, "ppp")
+childcare_ppp
+```
+
+```{r}
+plot(childcare_ppp)
+```
+
+```{r}
+summary(childcare_ppp)
+```
+
+::: callout-important
+## Duplicated points may be problematic in spatial point patterns analysis. This is because the statistical methodology used for spatial point patterns analysis assumes that points cannot be coincident.
+:::
+
+## Handling duplicated points
+
+Check for duplication
+
+```{r}
+any(duplicated(childcare_ppp))
+```
+
+Count the number of coincident points
+
+```{r}
+sum(multiplicity(childcare_ppp) > 1)
+```
+
+View locations of duplicate point events
+
+```{r}
+tmap_mode('view')
+tm_shape(childcare) +
+  tm_dots(alpha=0.4, 
+          size=0.05)
+```
+
+We can see duplicate points because they are more opaque (multiple points overlapping exactly on the same spot).
+
+```{r}
+tmap_mode('plot')
+```
+
+There are three approaches to this problem.
+
+1.  Delete the duplicates: But some useful point events will be lost.
+2.  Jittering: Add a small perturbation to the duplicate points so that they do not occupy the exact same space.
+3.  Marks: make each point "unique" and then attach the duplicates of the points to the patterns as marks (attributes of the points). Then, we need analytical techniques that take into account these marks.
+
+This code implements jittering.
+
+```{r}
+childcare_ppp_jit <- rjitter(childcare_ppp,
+                             retru=TRUE,
+                             nsim=1,
+                             drop=TRUE)
+```
+
+```{r}
+any(duplicated(childcare_ppp_jit))
+```
+
+## Creating spatstat's owin object
+
+spatstat's owin object is specially designed to represent a polygonal region.
+
+::: callout-note
+## Todo: Implement after finding the dataset
+:::
