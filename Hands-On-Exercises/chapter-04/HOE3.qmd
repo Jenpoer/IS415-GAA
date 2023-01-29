@@ -38,16 +38,28 @@ mpsz_sf <- st_read(dsn = "../chapter-02/data/geospatial/master-plan-2014-subzone
 **Childcare**: EPSG 3414, Projection CRS SVY21
 
 ```{r}
+st_geometry(childcare_sf)
+```
+
+```{r}
 st_crs(childcare_sf)
 ```
 
 **SG**: EPSG 9001, Projection CRS SVY21
 
 ```{r}
+st_geometry(sg_sf)
+```
+
+```{r}
 st_crs(sg_sf)
 ```
 
 **MPSZ:** EPSG 9001, Projection CRS SVY21
+
+```{r}
+st_geometry(mpsz_sf)
+```
 
 ```{r}
 st_crs(mpsz_sf)
