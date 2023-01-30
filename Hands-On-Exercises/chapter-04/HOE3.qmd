@@ -230,7 +230,7 @@ summary(childcareSG_ppp)
 plot(childcareSG_ppp)
 ```
 
-# First-order Spatial Point Patterns Analysis (Hands On Exercise 4)
+# First-order Spatial Point Patterns Analysis (Hands-On Exercise 4)
 
 ## Kernel Density Estimation
 
@@ -519,7 +519,7 @@ clarkevans.test(childcare_tm_ppp,
                 nsim=999)
 ```
 
-# Second-order Spatial Point Patterns (Hands On Exercise 5)
+# Second-order Spatial Point Patterns (Hands-On Exercise 5)
 
 ## G-Function
 
