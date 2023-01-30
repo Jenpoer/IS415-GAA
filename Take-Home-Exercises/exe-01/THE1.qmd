@@ -1,0 +1,11 @@
+---
+title: "Take Home Exercise 1: "
+format: html
+author: "Jennifer Poernomo"
+date: "27 January 2023"
+date-modified: "`r Sys.Date()`"
+execute: 
+  message: false
+  warning: false
+editor: visual
+---

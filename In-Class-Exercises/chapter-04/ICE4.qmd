@@ -1,0 +1,57 @@
+---
+title: "In-Class Exercise 4: Spatial Points Patterns Analysis"
+format: html
+author: "Jennifer Poernomo"
+date: "30 January 2023"
+date-modified: "`r Sys.Date()`"
+execute: 
+  message: false
+  warning: false
+editor: visual
+---
+
+# Importing packages
+
+```{r}
+pacman::p_load(maptools, sf, raster, spatstat, tmap)
+```
+
+# Importing data
+
+## Spatial data
+
+```{r}
+childcare_sf <- st_read("../../Hands-On-Exercises/chapter-04/data/geospatial/childcare.geojson") %>%
+  st_transform(crs = 3414)
+```
+
+```{r}
+sg_sf <- st_read(dsn = "../../Hands-On-Exercises/chapter-04/data/geospatial/CostalOutline", layer="CostalOutline")
+```
+
+```{r}
+mpsz_sf <- st_read(dsn = "../../Hands-On-Exercises/chapter-02/data/geospatial/master-plan-2014-subzone-boundary-web-shp",
+                   layer = "MP14_SUBZONE_WEB_PL")
+```
+
+Spatial\*
+
+```{r}
+childcare <- as_Spatial(childcare_sf)
+mpsz <- as_Spatial(mpsz_sf)
+sg <- as_Spatial(sg_sf)
+```
+
+sp object: Only retains the geometry
+
+```{r}
+childcare_sp <- as(childcare, "SpatialPoints")
+sg_sp <- as(sg, "SpatialPolygons")
+```
+
+ppp format
+
+```{r}
+childcare_ppp <- as(childcare_sp, "ppp")
+childcare_ppp
+```
