@@ -1,5 +1,5 @@
 ---
-title: "Hands-On Exercise 2: Choropleth Mapping"
+title: "Hands-On Exercise 3: Choropleth Mapping"
 format: html
 date-modified: "`r Sys.Date()`"
 execute: 
