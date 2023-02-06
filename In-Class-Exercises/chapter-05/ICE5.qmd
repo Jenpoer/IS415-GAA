@@ -13,11 +13,91 @@ editor: visual
 # Import Packages
 
 ```{r}
-pacman::p_load(sf, tidyverse, tmap, maptools, raster, spatstat)
+pacman::p_load(sf, tidyverse, tmap, sfdep)
 ```
 
 # Import Dataset
 
-```{r}
+Taiwan has two projection systems: one is Taiwan's local version and one is related to China's projection system.
 
+```{r}
+study_area <- st_read(dsn = "data", layer = "study_area") %>%
+  st_transform(crs = 3829)
+```
+
+```{r}
+stores <- st_read(dsn = "data", layer = "stores") %>%
+  st_transform(crs = 3829)
+```
+
+# Visualise the layers
+
+```{r}
+tmap_mode("view")
+tm_shape(study_area) +
+  tm_polygons() +
+  tm_shape(stores) +
+  tm_dots(col="Name",
+          size = 0.01,
+          border.col = "black",
+          border.lwd = 0.5) +
+  tm_view(set.zoom.limits = c(12, 16))
+```
+
+# Local Colocation Quotients (LCLQ)
+
+Find 6 nearest neighbors + 1 (itself) - so that you can have an uneven split
+
+```{r}
+nb <- include_self(st_knn(st_geometry(stores), 6))
+```
+
+Calculate weight matrix
+
+```{r}
+wt <- st_kernel_weights(nb, stores, "gaussian", adaptive=TRUE)
+```
+
+**Extract categories**
+
+```{r}
+family_mart <- stores %>% filter(Name == "Family Mart")
+A <- family_mart$Name
+```
+
+```{r}
+seven_eleven <- stores %>% filter(Name == "7-Eleven")
+B <- seven_eleven$Name
+```
+
+**Derive local co-location quotient**
+
+-   A: Target
+
+-   B: Neighbour that we want to find out is co-located or not
+
+49 is the number of simulations. It will come up with the p-value immediately.
+
+```{r}
+LCLQ <- local_colocation(A, B, nb, wt, 49)
+```
+
+Combine the stores and the LCLQ table
+
+```{r}
+LCLQ_stores <- cbind(stores, LCLQ)
+```
+
+**Visualise which data points have signs of co-location**
+
+```{r}
+tmap_mode("view")
+tm_shape(study_area) +
+  tm_polygons() +
+  tm_shape(LCLQ_stores) +
+  tm_dots(col="X7.Eleven",
+          size = 0.01,
+          border.col = "black",
+          border.lwd = 0.5) +
+  tm_view(set.zoom.limits = c(12, 16))
 ```
