@@ -55,3 +55,167 @@ ppp format
 childcare_ppp <- as(childcare_sp, "ppp")
 childcare_ppp
 ```
+
+```{r}
+plot(childcare_ppp)
+```
+
+Create owin object
+
+```{r}
+sg_owin <- as(sg_sp, "owin")
+```
+
+Combine with owin
+
+```{r}
+childcareSG_ppp = childcare_ppp[sg_owin]
+plot(childcareSG_ppp)
+```
+
+# Mapping
+
+```{r}
+tmap_mode("view")
+tm_view(set.zoom.limits=c(10, 15)) +
+tm_shape(childcare_sf) +  
+  tm_dots(alpha=0.5)
+```
+
+# KDE
+
+### Computing KDE using automatic bandwidth selection method
+
+```{r}
+kde_childcareSG_bw <- density(childcareSG_ppp,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian")
+```
+
+```{r}
+plot(kde_childcareSG_bw)
+```
+
+Bandwidth:
+
+```{r}
+bw <- bw.diggle(childcareSG_ppp)
+bw
+```
+
+### Rescaling KDE values
+
+```{r}
+childcareSG_ppp.km <- rescale(childcareSG_ppp, 1000, "km")
+```
+
+```{r}
+kde_childcareSG.bw <- density(childcareSG_ppp.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
+plot(kde_childcareSG.bw)
+```
+
+### Different automatic bandwidth methods
+
+```{r}
+bw.CvL(childcareSG_ppp.km)
+```
+
+```{r}
+bw.scott(childcareSG_ppp.km)
+```
+
+```{r}
+bw.ppl(childcareSG_ppp.km)
+```
+
+```{r}
+bw.diggle(childcareSG_ppp.km)
+```
+
+bw.diggle vs bw.ppl
+
+```{r}
+kde_childcareSG.ppl <- density(childcareSG_ppp.km, 
+                               sigma=bw.ppl, 
+                               edge=TRUE,
+                               kernel="gaussian")
+par(mfrow=c(1,2))
+plot(kde_childcareSG.bw, main = "bw.diggle")
+plot(kde_childcareSG.ppl, main = "bw.ppl")
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(density(childcareSG_ppp.km, 
+             sigma=bw.ppl, 
+             edge=TRUE, 
+             kernel="gaussian"), 
+     main="Gaussian")
+plot(density(childcareSG_ppp.km, 
+             sigma=bw.ppl, 
+             edge=TRUE, 
+             kernel="epanechnikov"), 
+     main="Epanechnikov")
+plot(density(childcareSG_ppp.km, 
+             sigma=bw.ppl, 
+             edge=TRUE, 
+             kernel="quartic"), 
+     main="Quartic")
+plot(density(childcareSG_ppp.km, 
+             sigma=bw.ppl, 
+             edge=TRUE, 
+             kernel="disc"), 
+     main="Disc")
+```
+
+### Fixed and Adaptive KDE
+
+**Fixed Bandwidth**
+
+```{r}
+kde_childcareSG_600 <- density(childcareSG_ppp.km, sigma=0.6, edge=TRUE, kernel="gaussian")
+plot(kde_childcareSG_600)
+```
+
+**Adaptive Bandwidth**
+
+```{r}
+kde_childcareSG_adaptive <- adaptive.density(childcareSG_ppp.km, method="kernel")
+plot(kde_childcareSG_adaptive)
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(kde_childcareSG.bw, main = "Fixed bandwidth")
+plot(kde_childcareSG_adaptive, main = "Adaptive bandwidth")
+```
+
+### Converting KDE output into grid object
+
+```{r}
+gridded_kde_childcareSG_bw <- as.SpatialGridDataFrame.im(kde_childcareSG.bw)
+spplot(gridded_kde_childcareSG_bw)
+```
+
+### Converting into raster
+
+```{r}
+kde_childcareSG_bw_raster <- raster(gridded_kde_childcareSG_bw)
+kde_childcareSG_bw_raster
+```
+
+#### Assigning projection systems
+
+```{r}
+projection(kde_childcareSG_bw_raster) <- CRS("+init=EPSG:3414 +units=km")
+kde_childcareSG_bw_raster
+```
+
+#### Plot in tmap
+
+```{r}
+tm_shape(kde_childcareSG_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+```
