@@ -1,0 +1,23 @@
+---
+title: "In-Class Exercise 5: Local Co-location Quotient"
+format: html
+author: "Jennifer Poernomo"
+date: "6 February 2023"
+date-modified: "`r Sys.Date()`"
+execute: 
+  message: false
+  warning: false
+editor: visual
+---
+
+# Import Packages
+
+```{r}
+pacman::p_load(sf, tidyverse, tmap, maptools, raster, spatstat)
+```
+
+# Import Dataset
+
+```{r}
+
+```
