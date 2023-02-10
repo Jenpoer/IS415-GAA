@@ -125,18 +125,25 @@ unique(wp_sf$`status_clean`)
 
 To make it easier to work with the data, let's only select columns that we need, namely:
 
--   #clean_country_name: country name the data is derived from (Nigeria), simply retained for reference
+-   clean_country_name: country name the data is derived from (Nigeria), simply retained for reference
 
--   #clean_adm1: name of the state we are concerned with (Osun), simply retained for reference
+-   clean_adm1: name of the state we are concerned with (Osun), simply retained for reference
 
--   #clean_adm2: names of level-2 administrative boundary (LGA)
+-   clean_adm2: names of level-2 administrative boundary (LGA)
 
 -   Geometry: the geospatial information that we generated from the aspatial data
 
 -   status_clean: the statuses of the water points
 
+In addition, we want to constrain the water points to only those that are within the Osun region defined by the state boundary GIS data.
+
 ```{r}
-wp_sf_osun <- wp_sf %>% dplyr::select(c("Geometry", "status_clean", "#clean_country_name", "#clean_adm1", "#clean_adm2"))
+wp_sf_osun <- wp_sf %>% 
+  st_intersection(osun) %>% 
+  dplyr::select(c("Geometry", "status_clean", "X.clean_country_name", "X.clean_adm1", "X.clean_adm2")) %>%
+  rename(clean_country_name = 'X.clean_country_name',
+         clean_adm1 = 'X.clean_adm1',
+         clean_adm2 = 'X.clean_adm2')
 glimpse(wp_sf_osun)
 ```
 
@@ -327,7 +334,7 @@ tm_basemap("OpenStreetMap") +
   tm_view(set.zoom.limits=c(8, 18)) +
   tm_shape(osun) +
     tm_borders(lwd=0.5) +
-  tm_shape(st_intersection(wp_sf_osun, osun)) +
+  tm_shape(wp_sf_osun) +
     tm_dots(title = "Status", col = "func_status", alpha = 0.7) +
   tm_layout(main.title="Distribution of All Water Points")
 ```
@@ -341,7 +348,7 @@ tmap_mode("plot")
 ```{r}
 func_points <- tm_shape(osun) +
   tm_fill() +
-  tm_shape(st_intersection(functional, osun)) +
+  tm_shape(functional) +
   tm_dots() +
   tm_layout(main.title="Distribution of Functional Water Points",
             main.title.size = 1)
@@ -350,7 +357,7 @@ func_points <- tm_shape(osun) +
 ```{r}
 non_func_points <- tm_shape(osun) +
   tm_fill() +
-  tm_shape(st_intersection(non_functional, osun)) +
+  tm_shape(non_functional) +
   tm_dots() +
   tm_layout(main.title="Distribution of Non-Functional Water Points",
             main.title.size = 1)
@@ -783,7 +790,7 @@ G_ife_central.csr <- envelope(wp_ife_east_ppp, Gest, nsim=39)
 plot(G_ife_central.csr, main="CSR Ife East G-Function")
 ```
 
-We can observe from the plot that the computed G-function values lie above the envelope, indicating some clustering. Therefore, we can reject the null hypothesis that functional water points in Ife East are randomly distributed at 95% confidence interval.
+We can observe from the plot that the computed G-function values lie above the envelope, indicating some clustering, except for the r=900 (approximate)-1000 interval. Therefore, for r values below 900, we can reject the null hypothesis that non-functional water points in Ife East are randomly distributed at 95% confidence interval.
 
 # Spatial Correlation Analysis
 
@@ -799,12 +806,23 @@ As such, we will be computing the **Local Co-Location Quotients (LCLQ)** between
 
 ## Extracting categories
 
-Using the functional and non_functional dataframes that we have created during the Data Preprocessing section, we will extract the functional and non-functional points into vectors.
+We can select a subset of our data containing only Functional and Non-Functional water points. This is because we cannot be certain about the status of Unknown water points, so we do not want them to count towards the computation of the LCLQ.
 
 ```{r}
-functional_list <- functional$func_status
+wp_sf_osun_known <- wp_sf_osun %>%
+  filter(`func_status` %in% c("Functional", "Non-Functional"))
+```
 
-non_functional_list <- non_functional$func_status
+Then, we will extract the functional and non-functional points into vectors.
+
+```{r}
+functional_list <- wp_sf_osun_known %>%
+  filter(`func_status` == "Functional") %>%
+  dplyr::pull(`func_status`)
+
+non_functional_list <- wp_sf_osun_known %>%
+  filter(`func_status` == "Non-Functional") %>%
+  dplyr::pull(`func_status`)
 ```
 
 ## Calculate Local Co-Location Quotient (LCLQ)
@@ -816,7 +834,7 @@ To calculate the LCLQ, we need to do several steps.
 We choose 6 nearest neighbors, but include the point of interest itself (hence ending up with the odd number of 7).
 
 ```{r}
-nb <- include_self(st_knn(st_geometry(wp_sf_osun), 6))
+nb <- include_self(st_knn(st_geometry(wp_sf_osun_known), 6))
 ```
 
 **2) Calculate weight matrix**
@@ -824,7 +842,7 @@ nb <- include_self(st_knn(st_geometry(wp_sf_osun), 6))
 According to the [documentation for sfdep's local_colocation](https://rdrr.io/github/JosiahParry/sfdep/f/vignettes/articles/colocation-analysis.Rmd), Wang et. al (2017) emphasises on the use of Gaussian adaptive kernel. Hence, that is what we will be using to compute the weight matrix.
 
 ```{r}
-wt <- st_kernel_weights(nb, wp_sf_osun, "gaussian", adaptive=TRUE)
+wt <- st_kernel_weights(nb, wp_sf_osun_known, "gaussian", adaptive=TRUE)
 ```
 
 **3) Derive co-location quotient**
@@ -842,7 +860,7 @@ LCLQ <- local_colocation(functional_list,
 After deriving the LCLQ, we combine them into the original dataframe consisting of water point data using the cbind() function of base R.
 
 ```{r}
-LCLQ_osun <- cbind(wp_sf_osun, LCLQ)
+LCLQ_osun <- cbind(wp_sf_osun_known, LCLQ)
 ```
 
 We also remove the LCLQ for those that fall above the designated significance level, which is **0.05**, as they are not statistically significant.
@@ -871,10 +889,11 @@ tm_view(set.zoom.limits=c(9, 15),
   tm_dots(col="Non.Functional",
           palette=c("cyan", "grey"),
           size = "size",
-          scale=0.3,
+          scale=0.15,
           border.col = "black",
           border.lwd = 0.5,
-          alpha=0.5
+          alpha=0.5,
+          title="LCLQ"
           )
 ```
 
