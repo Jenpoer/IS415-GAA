@@ -281,6 +281,8 @@ summary(non_func_ppp)
 
 **4) Creating owin object**
 
+We need to confine our analysis to the Osun State boundary using spatstat's owin object, which is specially designed to represent polygonal regions.
+
 ```{r}
 osun_owin <- as(osun_sp, "owin")
 ```
@@ -881,3 +883,51 @@ tmap_mode("plot")
 ```
 
 The plot above displays water points with statistically significant LCLQ (i.e. p-value \< 0.05). As we can observe, the calculated LCLQ is just under 1. This implies that while the functional water points are isolated (i.e. it is less likely to have non-functional water points within its neighbourhood), the proportion of categories within their neighbourhood is a good representation of the proportion of categories throughout Osun.
+
+## Examining colocation using Ripley's Cross-K (Cross-L) Function
+
+The simulation-based Local Co-location Quotient (LCLQ) proposed by [Wang et al. (2017)](https://arxiv.org/ftp/arxiv/papers/2006/2006.13277.pdf) takes into account that spatial associations vary locally across different spaces. However, traditionally, colocation is measured by Ripley's Cross-K Function - a modification of Ripley's K-Function. Unlike the LCLQ, it is a global measure. As such, there is merit in conducting analysis using the Cross-K Function to compare the results against the LCLQ.
+
+For this project, instead of the traditional Cross-K Function, we will be using the normalised version: Cross-L Function. Much like in the Second-order Spatial Points Patterns Analysis, we will be using **spatstat's Lcross()** function to compute the value and **envelope()** to perform the Monte Carlo simulation tests.
+
+We will be operating on the same H0, H1, and significance level as the LCLQ.
+
+### Assigning marks to the ppp object
+
+We will be using creating a multitype version of our wp_ppp object that we have created in the Data Preprocessing section, and combining it with the osun_owin object. However, for the purpose of computing the L-Cross Function, we need to assign marks to the ppp object - specifically denoting the func_status.
+
+```{r}
+wp_ppp_marked <- wp_ppp
+marks(wp_ppp_marked) <- factor(wp_sf_osun$func_status)
+
+wp_osun_ppp_marked = wp_ppp_marked[osun_owin]
+```
+
+We can now see that the points are categorised based on their func_status.
+
+```{r}
+plot(wp_osun_ppp_marked)
+```
+
+Again, however, we need to rescale the data to km.
+
+```{r}
+wp_osun_ppp_marked.km <- rescale(wp_osun_ppp_marked, 1000, "km")
+```
+
+### Computing Cross-L Function
+
+```{r}
+wp_osun_Lcross.csr <- envelope(wp_osun_ppp_marked.km, 
+                                 Lcross, 
+                                 i="Functional", 
+                                 j="Non-Functional", 
+                                 correction="border", 
+                                 nsim=39)
+```
+
+```{r}
+plot(wp_osun_Lcross.csr, xlim=c(0,10), main="L-Cross Function", legend=FALSE)
+```
+
+We can see that from distances 0 - slightly before 6 km (approximate) there seems to be clustering between the functional and non-functional water points. However, from 7 km onwards (approximate), there seems to be dispersion instead. For those intervals, we can reject the null hypothesis that functional water points and non-functional water points are independently distributed at 95% confidence interval.
