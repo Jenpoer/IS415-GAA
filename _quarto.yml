@@ -15,6 +15,8 @@ website:
             href: "Hands-On-Exercises/chapter-03/HOE2.qmd"
           - text: "Week 3"
             href: "Hands-On-Exercises/chapter-04/HOE3.qmd"
+          - text: "Week 6"
+            href: "Hands-On-Exercises/chapter-06/HOE6.qmd"
       - text: "In Class Exercises"
         menu: 
           - text: "Week 2"
@@ -25,6 +27,8 @@ website:
             href: "In-Class-Exercises/chapter-04/ICE4.qmd"
           - text: "Week 5"
             href: "In-Class-Exercises/chapter-05/ICE5.qmd"
+          - text: "Week 6"
+            href: "In-Class-Exercises/chapter-06/ICE6.qmd"
       - text: "Take Home Exercises"
         menu:
           - text: "Exercise 1"

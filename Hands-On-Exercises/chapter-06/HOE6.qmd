@@ -1,5 +1,5 @@
 ---
-title: "Hands-On Exercise 6: "
+title: "Hands-On Exercise 6: Spatial Weights and Applications"
 format: html
 author: "Jennifer Poernomo"
 date: "13 February 2023"
@@ -9,3 +9,45 @@ execute:
   warning: false
 editor: visual
 ---
+
+# Import Packages
+
+```{r}
+pacman::p_load(sf, spdep, tmap, tidyverse, knitr)
+```
+
+::: callout-note
+## spdep is an older package, so we need to convert data types, unlike the newer sfdep which does it automatically.
+:::
+
+# Import Data
+
+## Geospatial
+
+```{r}
+hunan <- st_read(dsn = "data/geospatial", 
+                 layer = "Hunan")
+```
+
+## Aspatial
+
+```{r}
+hunan2012 <- read_csv("data/aspatial/Hunan_2012.csv")
+```
+
+```{r}
+is_tibble(hunan2012)
+```
+
+# Data Preprocessing
+
+## Combining data frame with left join
+
+::: callout-tip
+## If you want to retain geometry, the left one must be the geospatial data
+:::
+
+```{r}
+hunan <- left_join(hunan,hunan2012)%>%
+  select(1:4, 7, 15)
+```
