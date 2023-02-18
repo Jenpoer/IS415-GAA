@@ -16,7 +16,9 @@ website:
           - text: "Week 3"
             href: "Hands-On-Exercises/chapter-04/HOE3.qmd"
           - text: "Week 6"
-            href: "Hands-On-Exercises/chapter-06/HOE6.qmd"
+            href: "Hands-On-Exercises/chapter-08/HOE6.qmd"
+          - text: "Week 7"
+            href: "Hands-On-Exercises/chapter-09/HOE7.qmd"
       - text: "In Class Exercises"
         menu: 
           - text: "Week 2"

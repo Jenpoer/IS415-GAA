@@ -2,4 +2,4 @@
 title: "IS415-GAA"
 ---
 
-Jennifer Poernomo's compilation of In Class Exercises, Hands On Exercises, and Take Home Exercises for 2023 T1 IS415 Geospatial Analytics and Applications.
+Jennifer Poernomo's compilation of In Class Exercises, Hands On Exercises, and Take Home Exercises for 2023 IS415 Geospatial Analytics and Applications.

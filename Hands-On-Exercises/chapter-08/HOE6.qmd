@@ -1,5 +1,5 @@
 ---
-title: "Hands-On Exercise 6: Spatial Weights and Applications"
+title: "Hands-On Exercise 8: Spatial Weights and Applications"
 format: html
 author: "Jennifer Poernomo"
 date: "13 February 2023"
