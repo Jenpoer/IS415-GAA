@@ -225,7 +225,7 @@ localMI <- localmoran(hunan$GDPPC, rswm_q)
 head(localMI)
 ```
 
--   Ii: the local Moran\'s I statistics
+-   Ii: the local Moran's I statistics
 
 -   E.Ii: the expectation of local moran statistic under the randomisation hypothesis
 
