@@ -37,6 +37,8 @@ website:
         menu:
           - text: "Exercise 1"
             href: "Take-Home-Exercises/exe-01/THE1.qmd"
+          - text: "Exercise 2"
+            href: "Take-Home-Exercises/exe-02/THE2.qmd"
     right:
       - about.qmd
 

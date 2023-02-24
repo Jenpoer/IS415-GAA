@@ -1,0 +1,749 @@
+---
+title: "Take Home Exercise 2: Spatio-temporal Analysis of Vaccination Trends in DKI Jakarta"
+format: html
+author: "Jennifer Poernomo"
+date: "16 February 2023"
+date-modified: "`r Sys.Date()`"
+execute: 
+  message: false
+  warning: false
+editor: visual
+---
+
+# Background
+
+In response to the Covid-19 pandemic, Indonesia launched an ongoing mass immunisation program. According to [covid19.go.id](https://covid19.go.id/id/artikel/2023/02/15/situasi-covid-19-di-indonesia-update-15-februari-2023) as of 15 February 2023, 203.823.041 of Indonesia's population has received the first dose, 174.828.708 has received the second dose, 69.759.284 has received the third dose, and 2.007.703 has received the fourth dose. Indonesia is targetting to have 234.666.020 of its population vaccinated against Covid-19.
+
+This project aims to investigate the distribution of cumulative vaccination rate across the province of DKI Jakarta, in hopes of identifying kelurahan (sub-districts) with relatively higher vaccination rates and how they have changed over time. The period of study for this project is confined to July 2021 - June 2022.
+
+# Context
+
+Indonesia's geographical territory is divided into this hierarchy:
+
+-   Level 1: Provinsi / Daerah Istimewa (Provinces / Special Area)
+
+-   Level 2: Kabupaten / Kota (Regency / City)
+
+-   Level 3: Kecamatan (District)
+
+-   Level 4: Desa / Kelurahan (Village / Sub-district)
+
+-   Others: Rukun Warga & Rukun Tetangga (Rukun Warga is below Kelurahan, and Rukun Tetangga is technically the smallest unit of administrative division. However, it is not actually included in governmental administration)
+
+DKI Jakarta is a province specially dedicated for the capital of Indonesia. It is made up of 5 kota (Jakarta Barat, Jakarta Pusat, Jakarta Selatan, Jakarta Timur, and Jakarta Utara), 1 kabupaten (Kepulauan Seribu), 44 kecamatan, and 267 kelurahan.
+
+# Import
+
+## Packages
+
+The packages used in this project are:
+
+-   **sf**: for importing, managing, and processing geospatial data.
+
+-   **tidyverse**: a family of other R packages for performing data science tasks such as importing, wrangling, and visualising data.
+
+-   **tmap**: creating thematic maps
+
+-   **sfdep**: for analysing spatial dependencies
+
+```{r}
+pacman::p_load(sf, tidyverse, tmap, sfdep)
+```
+
+## Geospatial Data
+
+We can get the 2019 DKI Jakarta administration boundary data from [Indonesia Geospasial data portal](https://www.indonesia-geospasial.com/2020/04/download-shapefile-shp-batas-desa.html).
+
+```{r}
+jkt_sf <- st_read(dsn = "data/geospatial", 
+                 layer = "BATAS_DESA_DESEMBER_2019_DUKCAPIL_DKI_JAKARTA")
+```
+
+## Aspatial Data
+
+The data we are going to use is from [Riwayat File Vaksinasi DKI Jakarta](https://riwayat-file-vaksinasi-dki-jakarta-jakartagis.hub.arcgis.com/), which has daily vaccination records done in DKI Jakarta. For this project, we are confining the time period of study from July 2021 - June 2022. Therefore, we will take data from the last day of every month.
+
+As the files are in XLSX format, we can use the readxl package included in tidyverse, specifically the read_excel() function. We need to specify the sheet that we are concerned with as "Data Kelurahan", as we will be analysing on a kelurahan level.
+
+To distinguish between the information for each sheet, we will add a column with the dates.
+
+```{r}
+# Converts the file names into a vector of date strings
+dates <- list.files("data/aspatial") %>% 
+  lapply(substring, first=36) %>%
+  strtrim(nchar(.) - 6) 
+dates
+```
+
+```{r}
+vaccine <- list.files("data/aspatial", full.names = TRUE) %>% # list all files
+  lapply(readxl::read_excel, sheet="Data Kelurahan") # apply read_excel to all
+
+names(vaccine) <- dates # set the list's names as dates
+
+vaccine <- vaccine %>% bind_rows(.id = "DATE") # bind rows into a tibble with date as id
+```
+
+# Data Preprocessing
+
+## Geospatial Data
+
+### Selecting relevant information
+
+```{r}
+colnames(jkt_sf)
+```
+
+The original data from the Indonesia Geospasial data portal has a lot of features. However, for the purpose of our study, we are only concerned about the first 9 columns (up to JUMLAH_PEN = Total Population). Hence, to make it easier to work with our data, we will only select the first 9 columns.
+
+```{r}
+jkt_sf <- jkt_sf %>% dplyr::select(c(0:9))
+```
+
+### Correcting projection information
+
+```{r}
+st_crs(jkt_sf)
+```
+
+Inspecting the CRS of the jkt spatial dataframe that we created, it appears that it is using the WGS 84 projection system with EPSG 4326. However, we want to use Indonesia's national Projected Coordinate System of DGN95 / Indonesia TM-3 zone 54.1, which is [EPSG 23845](https://epsg.io/23845). Therefore, we need to re-project it using st_transform().
+
+```{r}
+jkt_sf <- jkt_sf %>% st_transform(crs=23845)
+st_crs(jkt_sf)
+```
+
+### Confining area of study
+
+```{r}
+tmap_mode('plot')
+tm_shape(jkt_sf) + 
+  tm_polygons("KAB_KOTA") 
+```
+
+As mentioned in the Context section, DKI Jakarta includes Kabupaten Kepulauan Seribu - an archipelago of smaller islands located off-shore of the rest of the cities located in mainland Java. As we will be doing some neighbour calculations, in the interest of simplicity, we will exclude Kepulauan Seribu from the analysis. We will also exclude Danau Sunter.
+
+```{r}
+jkt_sf <- jkt_sf %>% filter(`KAB_KOTA` %in% c('JAKARTA BARAT',
+                                              'JAKARTA PUSAT',
+                                              'JAKARTA SELATAN',
+                                              'JAKARTA TIMUR',
+                                              'JAKARTA UTARA'))
+```
+
+```{r}
+tm_shape(jkt_sf) + tm_polygons()
+```
+
+## Aspatial Data
+
+### Inspecting the data
+
+The aspatial data contains 35 columns.
+
+::: {.callout-note collapse="true"}
+## Explanation (click to expand)
+
+-   DATE: The date from which the data is taken (according to the excel sheets)
+
+-   KODE_KELURAHAN: Sub-district code
+
+-   WILAYAH KOTA: City
+
+-   KECAMATAN: District
+
+-   KELURAHAN: Sub-district
+
+-   SASARAN: Target population
+
+-   BELUM VAKSIN: Unvaccinated
+
+-   JUMLAH DOSIS 1: Number of people who have been given the first dose up to that point
+
+-   JUMLAH DOSIS 2: Number of people who have been given the second dose up to that point
+
+-   JUMLAH DOSIS 3: Number of people who have been given the third dose up to that point
+
+-   TOTAL VAKSIN DIBERIKAN: Total number of vaccine given up to that point
+
+-   LANSIA (DOSIS 1 / DOSIS 2 / TOTAL VAKSIN DIBERIKAN / DOSIS 3): Elderly (first dose / second dose / total / third dose)
+
+-   PELAYAN PUBLIK (DOSIS 1 / DOSIS 2 / TOTAL VAKSIN DIBERIKAN / DOSIS 3): Public worker (first dose / second dose / total / third dose)
+
+-   GOTONG ROYONG (DOSIS 1 / DOSIS 2 / TOTAL VAKSIN DIBERIKAN / DOSIS 3): Vaccination under the [Gotong Royong scheme](https://www.vaksingotongroyong.id/) (first dose / second dose / total / third dose)
+
+-   TENAGA KESAHATAN (DOSIS 1 / DOSIS 2 / TOTAL VAKSIN DIBERIKAN / DOSIS 3): Healthcare worker (first dose / second dose / total / third dose)
+
+-   TAHAPAN 3 (DOSIS 1 / DOSIS 2 / TOTAL VAKSINASI DIBERIKAN / DOSIS 3): Stage 3 - General public (first dose / second dose / total / third dose)
+
+-   REMAJA (DOSIS 1 / DOSIS 2 / TOTAL VAKSINASI DIBERIKAN / DOSIS 3): Teenagers (first dose / second dose / total / third dose)
+:::
+
+```{r}
+glimpse(vaccine)
+```
+
+### Rename columns
+
+As the columns in the data currently has unwanted newline characters, we can rename the columns so that they will be in a format that's easier to work with.
+
+```{r}
+# use gsub(text, pattern="\r\n", replacement=" ") to replace newline characters with spaces
+
+colnames(vaccine) <- colnames(vaccine) %>% gsub(pattern="\r\n", replacement=" ")
+```
+
+### Selecting relevant information
+
+Much like the geospatial data, we want to only include data for Jakarta Barat, Jakarta Pusat, Jakarta Selatan, Jakarta Timur, and Jakarta Utara.
+
+```{r}
+vaccine <- vaccine %>% filter(`WILAYAH KOTA` %in% c('JAKARTA BARAT',
+                                              'JAKARTA PUSAT',
+                                              'JAKARTA SELATAN',
+                                              'JAKARTA TIMUR',
+                                              'JAKARTA UTARA'))
+```
+
+For the purposes of this project, we are also not too concerned about number of vaccinations given based on demographics (i.e. public workers, elderly, teenagers, etc.). Therefore, we will only be selecting columns related to administrative information and total vaccination information (i.e. SASARAN, BELUM VAKSIN, JUMLAH DOSIS 1, JUMLAH DOSIS 2, JUMLAH DOSIS 3).
+
+```{r}
+vaccine <- vaccine %>% dplyr::select(c(0:10, 29))
+```
+
+### Joining aspatial data together with geospatial data
+
+We can join the geospatial data with the aspatial data by kelurahan.
+
+```{r}
+jkt_vaccine <- left_join(jkt_sf, vaccine, by = c("DESA" = "KELURAHAN"))
+```
+
+```{r}
+tm_shape(jkt_vaccine) + 
+  tm_polygons("JUMLAH DOSIS 1") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "left")
+```
+
+Viewing the map, we can see that there are some missing records. This might be due to mismatches in records.
+
+```{r}
+unique(vaccine$KELURAHAN[!(vaccine$KELURAHAN %in% jkt_sf$DESA)])
+```
+
+```{r}
+unique(jkt_sf$DESA[!(jkt_sf$DESA %in% vaccine$KELURAHAN)])
+```
+
+```{r}
+spelling_mismatch <- data.frame(
+  Aspatial = sort(unique(vaccine$KELURAHAN[!(vaccine$KELURAHAN %in% jkt_sf$DESA)])),
+  Geospatial = c("BALEKAMBANG", "HALIM PERDANA KUSUMA", "JATIPULO", "TENGAH", "KRENDANG", "KRAMATJATI", "PALMERIAM", "PINANGRANTI", "RAWAJATI"))
+
+spelling_mismatch
+```
+
+As we can observe, the aspatial data names the kelurahan with spaces in between (e.g. RAWA JATI), while the geospatial data names them without spaces (e.g. RAWAJATI). In addition, there is a typo in the aspatial data (HALIM PERDANA KUSUMA**H** vs. HALIM PERDANA KUSUMA). As such, we need to standardise these names before performing a join.
+
+```{r}
+vaccine <- vaccine %>% 
+  mutate(KELURAHAN = recode(KELURAHAN,
+                            "BALE KAMBANG" = "BALEKAMBANG",
+                            "HALIM PERDANA KUSUMAH" = "HALIM PERDANA KUSUMA",
+                            "JATI PULO" = "JATIPULO",
+                            "KAMPUNG TENGAH" = "TENGAH",
+                            "KERENDANG" = "KRENDANG",
+                            "KRAMAT JATI" = "KRAMATJATI",
+                            "PAL MERIAM" = "PALMERIAM",
+                            "PINANG RANTI" = "PINANGRANTI",
+                            "RAWA JATI" = "RAWAJATI",
+                            .default = KELURAHAN))
+```
+
+With this, we can join the dataframes once more.
+
+```{r}
+jkt_vaccine <- left_join(jkt_sf, vaccine, by = c("DESA" = "KELURAHAN"))
+```
+
+```{r}
+tm_shape(jkt_vaccine) + 
+  tm_polygons("JUMLAH DOSIS 1") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "left")
+```
+
+### Convert DATE column into objects
+
+Currently, our DATE columns are in the character data type. For our analysis, we want them to be in a date object format. The date strings written in Bahasa Indonesia format, so to do this, we must also set our locale to use the Indonesian locale.
+
+```{r}
+Sys.setlocale(locale="id")
+
+# Create the date column
+jkt_vaccine <- jkt_vaccine %>% 
+  mutate(DATE = as.Date(DATE, format ="%d %B %Y"))
+```
+
+# Exploratory Data Analysis (EDA) with Choropleth Maps
+
+## Calculate monthly vaccination rates
+
+The monthly vaccination rate for every kelurahan is defined as the amount of people who had been given the first dose up to that point divided the target population. We might also want to find out how the amount of people vaccinated with the second dose and third dose changes over time. As such, we will also calculate their monthly rates.
+
+```{r}
+# Commented out because of time taken to run
+
+#first_dose_rate <- jkt_vaccine %>%
+# group_by(DESA, DATE) %>%
+#  summarise(`FIRST DOSE RATE` = sum(`JUMLAH DOSIS 1`) / SASARAN)
+
+#second_dose_rate <- jkt_vaccine %>%
+#  group_by(DESA, DATE) %>%
+#  summarise(`SECOND DOSE RATE` = sum(`JUMLAH DOSIS 2`) / SASARAN)
+
+#third_dose_rate <- jkt_vaccine %>%
+#  group_by(DESA, DATE) %>%
+#  summarise(`THIRD DOSE RATE` = sum(`JUMLAH DOSIS 3`) / SASARAN)
+```
+
+We can combine them into a single dataframe.
+
+```{r}
+# Commented out because it's dependent on the previous variables
+
+#vaccine_rates <- first_dose_rate %>% 
+#  cbind(second_dose_rate$`SECOND DOSE RATE`, third_dose_rate$`THIRD DOSE RATE`) %>%
+#  rename(
+#    `FIRST DOSE RATE` = `FIRST.DOSE.RATE`,
+#    `SECOND DOSE RATE` = `second_dose_rate..SECOND.DOSE.RATE.`,
+#    `THIRD DOSE RATE` = `third_dose_rate..THIRD.DOSE.RATE.`
+#  )
+```
+
+Then, we can save it into an RDS format so that we do not have to go through this computational bottleneck again.
+
+```{r}
+#saveRDS(vaccine_rates, file="data/rds/vaccine_rates.rds")
+```
+
+We can read the file again from the RDS format.
+
+```{r}
+vaccine_rates <- read_rds("data/rds/vaccine_rates.rds")
+```
+
+```{r}
+glimpse(vaccine_rates)
+```
+
+## Choropleth mapping
+
+We want to visualise the monthly choropleth maps for the total vaccination rate, first dose rate, second dose rate, and third dose rate. Therefore, we can create a utility function to make the process easier.
+
+```{r}
+create_choropleth_map <- function(df, varname, colpal="Blues") {
+  tm_shape(df) +
+    tm_fill(varname,
+            palette = colpal,
+            style="quantile") +
+    tm_facets(by="DATE") +
+    tm_borders(alpha = 0.5)
+}
+```
+
+::: panel-tabset
+## First Dose
+
+```{r}
+create_choropleth_map(vaccine_rates, "FIRST DOSE RATE", "Blues")
+```
+
+## Second Dose
+
+```{r}
+create_choropleth_map(vaccine_rates, "SECOND DOSE RATE", "Purples")
+```
+
+## Third Dose
+
+```{r}
+create_choropleth_map(vaccine_rates, "THIRD DOSE RATE", "Oranges")
+```
+:::
+
+### Analysis
+
+-   Total Vaccination Rate: We can see that as time progresses, the overall vaccination rate across the province grows higher. In August 2021, some kelurahan in North Jakarta and East Jakarta notably start having a higher vaccination rate. Then, for a period from November 2021 - February 2022, the vaccination rate seems equally distributed across the province. Afterwards, vaccination rates in South Jakarta and North Jakarta start increasing in March 2022 and spreads across the rest of the province.
+
+-   First Dose Rate: We can observe the same phenomenon of increase across the entire province. However, we can spot that certain kelurahan in North Jakarta and South Jakarta seem to have higher first dose vaccination rates.
+
+-   Second Dose Rate: The vaccination rate seems to be higher around the edges of the province, particularly around South Jakarta and West Jakarta.
+
+-   Third Dose Rate: There is no data from July 2021 -- February 2022, presumably because third dose vaccinations have not started yet. However, the kelurahan at the border of North Jakarta and East Jakarta and a certain kelurahan at East Jakarta seem to be among the first notably to receive a high third dose vaccination rate.
+
+# Hot Spot and Cold Spot Analysis (HCSA)
+
+Choropleth maps can give us an intuition on how the vaccination rates are distributed. However, it is not sufficient to truly give us an insight on the unevenness of the distribution. On a surface level, it gets harder to spot the inequality once vaccinations are more wide-spread (i.e. in more recent months) from the choropleth maps. Moreover, what we might intuitively think as "clusters" might not actually be clusters at all.
+
+If we want to properly identify clusters of kelurahan with significantly high ("hot spots") or low ("cold spots") vaccination rates, we must employ some statistical methods.
+
+To do this, we can use the **local Getis-Ord Gi\* statistic**.
+
+For the purpose of this analysis, we will be looking at the latest monthly data within our study period: **2022-06-30**
+
+## Computing spatial weights
+
+HCSA uses spatial weights to identify spatial clustering of high/low values in locations within a defined proximity. As such, we need to calculate a matrix of contiguity weights for each kelurahan before we can compute the local GI\* statistic.
+
+We will be deriving the contiguity weights with the **Queen's criterion.** The Queen's method derives its name from the Queen chess piece, so it essentially takes into account adjacent polygons horizontally, vertically, and diagonally.
+
+The weights will also be **inverse distance interpolated**. We assume that surrounding areas are more similar to each other.
+
+```{r}
+wm_q <- vaccine_rates %>%
+  filter(DATE == as.Date("2022-06-30")) %>% # filter for latest monthly data first
+  mutate(nb = st_contiguity(geometry), # create column of neighobrs
+         wt = st_inverse_distance(nb, geometry,
+                                  scale = 1,
+                                  alpha = 1), # create column of weights
+         .before = 1)
+```
+
+## Computing Local Gi\* Statistics
+
+Using the weight matrix data frame we have derived, we can now compute the local Gi\* statistics.
+
+We set our significance level to **0.05**, so we will reject all Gi\* with simulated p-value above that threshold and replace them with NA.
+
+```{r}
+set.seed(8008)
+```
+
+::: panel-tabset
+## First Dose
+
+```{r}
+HCSA_first <- wm_q %>%
+  mutate(local_Gi = local_gstar_perm(`FIRST DOSE RATE`, nb, wt, nsim=99),
+         .before = 1) %>%
+  unnest(local_Gi) %>%
+  dplyr::select(c(gi_star, p_sim, DESA, DATE, `FIRST DOSE RATE`)) %>%
+  mutate(`p_sim` = replace(`p_sim`, `p_sim` > 0.05, NA),
+         `gi_star` = ifelse(is.na(`p_sim`), NA, `gi_star`))
+
+arrange(HCSA_first, gi_star)
+```
+
+## Second Dose
+
+```{r}
+HCSA_second <- wm_q %>%
+  mutate(local_Gi = local_gstar_perm(`SECOND DOSE RATE`, nb, wt, nsim=99),
+         .before = 1) %>%
+  unnest(local_Gi) %>% 
+  dplyr::select(c(gi_star, p_sim, DESA, DATE, `SECOND DOSE RATE`)) %>%
+  mutate(`p_sim` = replace(`p_sim`, `p_sim` > 0.05, NA),
+         `gi_star` = ifelse(is.na(`p_sim`), NA, `gi_star`))
+
+arrange(HCSA_second, gi_star)
+```
+
+## Third Dose
+
+```{r}
+HCSA_third<- wm_q %>%
+  mutate(local_Gi = local_gstar_perm(`THIRD DOSE RATE`, nb, wt, nsim=99),
+         .before = 1) %>%
+  unnest(local_Gi) %>% 
+  dplyr::select(c(gi_star, p_sim, DESA, DATE, `THIRD DOSE RATE`)) %>%
+  mutate(`p_sim` = replace(`p_sim`, `p_sim` > 0.05, NA),
+         `gi_star` = ifelse(is.na(`p_sim`), NA, `gi_star`))
+
+arrange(HCSA_third, gi_star)
+```
+:::
+
+## Visualisation
+
+::: panel-tabset
+## First Dose
+
+```{r}
+tmap_mode("plot")
+tm_shape(HCSA_first) +
+  tm_fill("gi_star", palette="PiYG", midpoint=0, title="Gi*") + 
+  tm_borders(alpha = 0.5)
+```
+
+## Second Dose
+
+```{r}
+tmap_mode("plot")
+tm_shape(HCSA_second) +
+  tm_fill("gi_star", palette="PiYG", midpoint=0, title="Gi*") + 
+  tm_borders(alpha = 0.5)
+```
+
+## Third Dose
+
+```{r}
+tmap_mode("plot")
+tm_shape(HCSA_third) +
+  tm_fill("gi_star", palette="PiYG", midpoint=0, title="Gi*") + 
+  tm_borders(alpha = 0.5)
+```
+:::
+
+## Analysis
+
+It seems that at the later stages of the vaccination program, the southern coast of Jakarta have significantly higher overall vaccination rates than the other kelurahan. Meanwhile, central Jakarta have significantly lower overall vaccination rates. It is a similar case with the second dose, but we can see the formation of a cold spot around the north eastern part of Jakarta and a new hot spot around Kelapa Gading (the area bordering North Jakarta and East Jakarta). This phenomenon carries over to the third dose.
+
+Therefore, we can infer that while the kelurahan near the southern coast of Jakarta have a higher number of vaccinated individuals overall, the hot spots in the second dose and third dose maps imply that people in those areas opted for the second & extra doses of vaccination. Meanwhile, the second and third doses are not given out as much in the cold spots, such as the notable cold spot around Cilincing (the far north eastern part of Jakarta).
+
+# Emerging Hot Spot Analysis (EHSA)
+
+With HCSA, we can calculate and view the clusters for a point in time. The next logical question would be: how are these hot spots and cold spots changing over the period of the vaccination program? Are the clusters with high vaccination rate getting higher? Conversely, are the clusters with low vaccination rate getting lower? To do this, we will need to employ Emerging Hot Spot Analysis (EHSA) techniques.
+
+## Creating a Time Series Cube
+
+To perform EHSA, we must create a [time series cube](https://sfdep.josiahparry.com/articles/spacetime-s3.html) out of our data. It is a way to represent spatial data in a temporal context. Using a cube, we can index spatial data by time, therefore creating a "time series" for each location.
+
+We can use sfdep's as_spacetime() method to create this data representation.
+
+```{r}
+# Commented out because of time taken to run
+
+#vaccine_rates_st <- vaccine_rates %>% 
+#  as_spacetime(.loc_col="DESA", .time_col="DATE")
+```
+
+Like the vaccine_rates dataframe, we can save it into an RDS file format as the conversion takes a long time.
+
+```{r}
+# Commented out because it depends on previous commented code
+
+#saveRDS(vaccine_rates_st, file="data/rds/vaccine_rates_st.rds")
+```
+
+We can load it again from the RDS file. It will retain being a spacetime object.
+
+```{r}
+vaccine_rates_st <- read_rds("data/rds/vaccine_rates_st.rds")
+is_spacetime_cube(vaccine_rates_st)
+```
+
+## Computing spatial weights
+
+Just as we did in the HCSA, we need to calculate a matrix of spatial weights. We will be using the Queen's method and inverse distance interpolation.
+
+```{r}
+vaccine_rates_nb <- vaccine_rates_st %>%
+  activate("geometry") %>% # activate geometry context
+  mutate(nb = include_self(st_contiguity(geometry)),
+         wt = st_inverse_distance(nb, geometry,
+                                  scale = 1,
+                                  alpha = 1),
+         .before = 1) %>%  # create neighbour and weight column
+  set_wts("wt") %>%
+  set_nbs("nb")
+```
+
+## Computing local Gi\*
+
+Using these new columns, we can calculate the local Gi\* for each location grouped by DATE. For this analysis, we will be focusing more on the overall vaccination rate (i.e. FIRST DOSE RATE)
+
+```{r}
+EHSA_gi_star <- vaccine_rates_nb %>% 
+  group_by(`DATE`) %>%
+  mutate(gi_star = local_gstar_perm(
+    `FIRST DOSE RATE`, nb, wt, nsim=99),
+    .before = 1) %>% 
+  unnest(gi_star)
+
+EHSA_gi_star
+```
+
+## Mann-Kendall Test
+
+Using the **Mann-Kendall** **statistical test**, we can assess whether a set of values is increasing or decreasing over time. One advantage of this test is that the data does not need to conform to any specific distribution.
+
+-   H0: There is no monotonic trend in the series.
+
+-   H1: A trend exists, be it positive, negative, or non-null.
+
+-   Significance level: 0.05
+
+For this study, we will be selecting **3** kelurahans of interest.
+
+### Selecting Study Area
+
+To get an idea on which kelurahan we should pick, we can check the highest vaccination rate (i.e. FIRST DOSE RATE) at different stages of the vaccination program
+
+Early (September 2021):
+
+```{r}
+vaccine_rates %>% 
+  filter(DATE == as.Date("2021-09-30")) %>% 
+  top_n(5, `FIRST DOSE RATE`) %>%
+  arrange(desc(`FIRST DOSE RATE`)) %>%
+  dplyr::pull(DESA)
+```
+
+Middle (January 2022):
+
+```{r}
+vaccine_rates %>% 
+  filter(DATE == as.Date("2022-01-31")) %>% 
+  top_n(5, `FIRST DOSE RATE`) %>%
+  arrange(desc(`FIRST DOSE RATE`)) %>%
+  dplyr::pull(DESA)
+```
+
+Late (June 2022):
+
+```{r}
+vaccine_rates %>% 
+  filter(DATE == as.Date("2022-06-30")) %>% 
+  top_n(5, `FIRST DOSE RATE`) %>%
+  arrange(desc(`FIRST DOSE RATE`)) %>%
+  dplyr::pull(DESA)
+```
+
+We find that **HALIM PERDANA KUSUMA** seem to have the highest vaccination rate from the early stage of the vaccination program to the later stages. Additionally, **GLODOK** are also present as one of the top 5 in all the stages. We find that **MANGGARAI SELATAN** increases to being one of the top 5 kelurahan with the highest vaccination rate from the middle stage of the vaccination program to the final stage, but it was not included in the beginning.
+
+Hence, we will be focusing our analysis on these three kelurahan.
+
+### Performing Mann-Kendall Test
+
+::: panel-tabset
+## Halim Perdana Kusuma
+
+```{r}
+EHSA_cbg_hpk <- EHSA_gi_star %>% 
+  ungroup() %>% 
+  filter(DESA == "HALIM PERDANA KUSUMA") |> 
+  select(DESA, DATE, gi_star)
+```
+
+```{r}
+ggplot(data = EHSA_cbg_hpk, 
+       aes(x = DATE, 
+           y = gi_star)) +
+  geom_line() +
+  theme_light()
+```
+
+```{r}
+EHSA_cbg_hpk %>%
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) %>% 
+  tidyr::unnest_wider(mk)
+```
+
+## Glodok
+
+```{r}
+EHSA_cbg_glodok <- EHSA_gi_star %>% 
+  ungroup() %>% 
+  filter(DESA == "GLODOK") |> 
+  select(DESA, DATE, gi_star)
+```
+
+```{r}
+ggplot(data = EHSA_cbg_glodok, 
+       aes(x = DATE, 
+           y = gi_star)) +
+  geom_line() +
+  theme_light()
+```
+
+```{r}
+EHSA_cbg_glodok %>%
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) %>% 
+  tidyr::unnest_wider(mk)
+```
+
+## Manggarai Selatan
+
+```{r}
+EHSA_cbg_ms<- EHSA_gi_star %>% 
+  ungroup() %>% 
+  filter(DESA == "MANGGARAI SELATAN") |> 
+  select(DESA, DATE, gi_star)
+```
+
+```{r}
+ggplot(data = EHSA_cbg_ms, 
+       aes(x = DATE, 
+           y = gi_star)) +
+  geom_line() +
+  theme_light()
+```
+
+```{r}
+EHSA_cbg_ms %>%
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) %>% 
+  tidyr::unnest_wider(mk)
+```
+:::
+
+### Analysis
+
+-   HALIM PERDANA KUSUMA: By the graph of Gi\* plotted against date, we can see somewhat of an upwards trend. This is statistically confirmed by the Mann-Kendall Test. We can reject the null hypothesis that there is no monotonic trend.
+
+-   GLODOK: By the graph of Gi\* plotted against date, we can see somewhat of an downwards trend. This is statistically confirmed by the Mann-Kendall Test. We can reject the null hypothesis that there is no monotonic trend. Therefore, we can infer that as time goes by, the rate of vaccination in Glodok gradually decreases in comparison to the other kelurahan.
+
+-   MANGGARAI SELATAN: By the graph of Gi\* plotted against date, we can see somewhat of an upwards trend. This is statistically confirmed by the Mann-Kendall Test. We can reject the null hypothesis that there is no monotonic trend.
+
+## EHSA Analysis on all kelurahan
+
+We can perform emerging hotspot analysis on all kelurahan using sfdep's emerging_hostpot_analysis() function.
+
+```{r}
+EHSA <- emerging_hotspot_analysis(
+  x = vaccine_rates_st, 
+  .var = "FIRST DOSE RATE", 
+  k = 1, 
+  nsim = 99
+)
+```
+
+**Visualise the distribution of EHSA classes**
+
+```{r}
+ggplot(data = EHSA,
+       aes(x = classification)) +
+  geom_bar(fill="light blue")
+```
+
+```{r}
+jkt_EHSA <- jkt_sf %>%
+  left_join(EHSA,
+            by = c("DESA" = "location")) %>%
+   mutate(`p_value` = replace(`p_value`, `p_value` > 0.05, NA),
+          `classification` = ifelse(is.na(`p_value`), NA, `classification`))
+
+tmap_mode("plot")
+tm_shape(jkt_EHSA) +
+  tm_fill("classification") +
+  tm_borders(alpha = 0.5)
+```
+
+### Analysis
+
+A majority of the kelurahan, especially around the coast, seem to be in the form of an oscillating hot spot, where they become a statistically significant hot spot at the final time step despite being a statistically significant cold spot for the time steps before it. Whereas a few kelurahan in West Jakarta and North Jakarta are oscillating cold spots, which is the reverse of oscillating hot spots. A lot of the kelurahan in East Jakarta and West Jakarta are also sporadic cold spots, which means they are a statistically significant cold spot at the final time step with a history of being on-and-off cold spots.
+
+```{r}
+filter(jkt_EHSA, classification == "intensifying hotspot")$DESA
+```
+
+Notably, there is also one kelurahan (JAGAKARSA) that follows the intensifying hot spot pattern, which means it is a significant hot spot most of the time.
+
+In summary, the vaccination rates increase closer to the south-east coast of Jakarta, whereas West Jakarta seem to be cold spots with either oscillations or are sporadically cold.

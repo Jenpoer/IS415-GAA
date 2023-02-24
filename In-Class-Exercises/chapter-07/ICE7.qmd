@@ -13,7 +13,7 @@ editor: visual
 # Import Packages
 
 ```{r}
-pacman::p_load(sf, sfdep, tmap, tidyverse)
+pacman::p_load(sf, sfdep, tmap, tidyverse, plotly)
 ```
 
 # Import Dataset
@@ -168,13 +168,17 @@ tm_shape(HCSA) +
 # Emerging Hot Spots
 
 ```{r}
-GDPPC <- read_csv('data/aspatial/Hunan_GDPPC.csv')
+GDPPC_date <- read_csv('data/aspatial/Hunan_GDPPC.csv')
 ```
 
 Create Time Series Cube
 
 ```{r}
-GDPPC_st <- spacetime(GDPPC, hunan, .loc_col = "County", .time_col = "Year")
+GDPPC_st <- spacetime(GDPPC_date, hunan, .loc_col = "County", .time_col = "Year")
+```
+
+```{r}
+is_spacetime_cube(GDPPC_st)
 ```
 
 ```{r}
@@ -182,7 +186,9 @@ GDPPC_nb <- GDPPC_st %>%
   activate("geometry") %>%
   mutate(
     nb = include_self(st_contiguity(geometry)),
-    wt = st_weights(nb)
+    wt = st_inverse_distance(nb, geometry,
+                                  scale = 1,
+                                  alpha = 1)
   ) %>%
   set_nbs("nb") %>%
   set_wts("wt")
@@ -214,4 +220,84 @@ ehsa <- emerging_hotspot_analysis(
   k = 1,
   nsim = 99
 )
+```
+
+```{r}
+ggplot(data = cbg, 
+       aes(x = Year, 
+           y = gi_star)) +
+  geom_line() +
+  theme_light()
+```
+
+```{r}
+p <- ggplot(data = cbg, 
+       aes(x = Year, 
+           y = gi_star)) +
+  geom_line() +
+  theme_light()
+
+ggplotly(p)
+```
+
+```{r}
+cbg %>%
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) %>% 
+  tidyr::unnest_wider(mk)
+```
+
+Do for all locations
+
+```{r}
+ehsa <- gi_stars %>%
+  group_by(County) %>%
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) %>%
+  tidyr::unnest_wider(mk)
+```
+
+Arrange to show significant emerging hot spots
+
+```{r}
+emerging <- ehsa %>% 
+  arrange(sl, abs(tau)) %>% 
+  slice(1:5)
+```
+
+**Perform EHSA with sfdep**
+
+```{r}
+ehsa <- emerging_hotspot_analysis(
+  x = GDPPC_st, 
+  .var = "GDPPC", 
+  k = 1, 
+  nsim = 99
+)
+```
+
+```{r}
+ggplot(data = ehsa,
+       aes(x = classification)) +
+  geom_bar()
+```
+
+```{r}
+hunan_ehsa <- hunan %>%
+  left_join(ehsa,
+            by = c("County" = "location"))
+```
+
+```{r}
+ehsa_sig <- hunan_ehsa  %>%
+  filter(p_value < 0.05)
+tmap_mode("plot")
+tm_shape(hunan_ehsa) +
+  tm_polygons() +
+  tm_borders(alpha = 0.5) +
+tm_shape(ehsa_sig) +
+  tm_fill("classification") + 
+  tm_borders(alpha = 0.4)
 ```
