@@ -6,3 +6,4 @@
 
 /.quarto/
 **/data/aspatial/*.csv
+**/data/model/

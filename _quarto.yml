@@ -19,6 +19,8 @@ website:
             href: "Hands-On-Exercises/chapter-08/HOE6.qmd"
           - text: "Week 7"
             href: "Hands-On-Exercises/chapter-09/HOE7.qmd"
+          - text: "Week 9"
+            href: "Hands-On-Exercises/chapter-13/HOE8.qmd"
       - text: "In Class Exercises"
         menu: 
           - text: "Week 2"
@@ -33,12 +35,18 @@ website:
             href: "In-Class-Exercises/chapter-06/ICE6.qmd"
           - text: "Week 7"
             href: "In-Class-Exercises/chapter-07/ICE7.qmd"
+          - text: "Week 9"
+            href: "Hands-On-Exercises/chapter-13/HOE8.qmd"
+          - text: "Week 10"
+            href: "Hands-On-Exercises/chapter-12/ICE9.qmd"
       - text: "Take Home Exercises"
         menu:
           - text: "Exercise 1"
             href: "Take-Home-Exercises/exe-01/THE1.qmd"
           - text: "Exercise 2"
             href: "Take-Home-Exercises/exe-02/THE2.qmd"
+          - text: "Exercise 3"
+            href: "Take-Home-Exercises/exe-03/THE3.qmd"
     right:
       - about.qmd
 
