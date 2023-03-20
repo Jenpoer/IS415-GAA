@@ -64,9 +64,7 @@ Without geospatial weights
 # summary(price_mlr)
 ```
 
-```{# {r}
-# write_rds(price_mlr, "data/model/price_mlr.rds")
-```
+`{# {r} # write_rds(price_mlr, "data/model/price_mlr.rds")`
 
 ```{r}
 price_mlr <- read_rds("data/model/price_mlr.rds")
