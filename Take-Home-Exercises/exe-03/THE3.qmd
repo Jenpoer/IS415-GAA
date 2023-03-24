@@ -484,7 +484,7 @@ sf_hdb_resale_coords <- sf_hdb_resale_coords %>%
   mutate(unit_age = as.numeric(substring(month, 0, 4)) - lease_commence_date)
 ```
 
-## Locational Factors
+### Locational Factors
 
 Now, we can incorporate the locational factors into the HDB resale data. We are interested in:
 
@@ -492,7 +492,7 @@ Now, we can incorporate the locational factors into the HDB resale data. We are 
 
 -   Count of facilities within a specified radius
 
-### Proximity
+#### Proximity
 
 We can get the proximity to the nearest facility by calculating a matrix of distances using sf's st_distance() function. We calculate the lowest row-wise value of the matrix for each HDB unit in kilometers, and append it as a column to the dataframe.
 
@@ -515,7 +515,7 @@ get_proximity <- function(origin_df, dest_df, col_name) {
 }
 ```
 
-#### CBD
+##### CBD
 
 One of the locational factors of interest that we want to take into account is the proximity to Singapore's CBD. This encompasses the [Downtown Core](https://www.ura.gov.sg/Corporate/Guidelines/Urban-Design/Downtown-Core) planning area. To get the proximity, we can simply check against the centroid of the Downtown Core area.
 
@@ -550,7 +550,7 @@ sf_hdb_resale_coords <- sf_hdb_resale_coords %>%
   get_proximity(downtown_core_centroid, "PROX_CBD")
 ```
 
-#### Other locational factors
+##### Other locational factors
 
 We can repeat this process as it is with the other locational factors.
 
@@ -567,7 +567,7 @@ sf_hdb_resale_coords <- sf_hdb_resale_coords %>%
   get_proximity(sf_good_primary_schools, "PROX_GOOD_PRIMARY_SCHOOL")
 ```
 
-### Count of facilities
+#### Count of facilities
 
 For the count of facilities, we are interested in getting:
 
