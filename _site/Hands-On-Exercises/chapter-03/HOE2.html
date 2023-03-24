@@ -171,6 +171,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
     <a class="dropdown-item" href="../../Hands-On-Exercises/chapter-09/HOE7.html">
  <span class="dropdown-text">Week 7</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../Hands-On-Exercises/chapter-13/HOE8.html">
+ <span class="dropdown-text">Week 9</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -202,6 +206,18 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
     <a class="dropdown-item" href="../../In-Class-Exercises/chapter-07/ICE7.html">
  <span class="dropdown-text">Week 7</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../Hands-On-Exercises/chapter-13/HOE8.html">
+ <span class="dropdown-text">Week 9</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../In-Class-Exercises/chapter-12/ICE9.html">
+ <span class="dropdown-text">Week 10</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../In-Class-Exercises/chapter-16/ICE10.html">
+ <span class="dropdown-text">Week 11</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -216,6 +232,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
         <li>
     <a class="dropdown-item" href="../../Take-Home-Exercises/exe-02/THE2.html">
  <span class="dropdown-text">Exercise 2</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Take-Home-Exercises/exe-03/THE3.html">
+ <span class="dropdown-text">Exercise 3</span></a>
   </li>  
     </ul>
   </li>
@@ -285,7 +305,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
     <div>
     <div class="quarto-title-meta-heading">Modified</div>
     <div class="quarto-title-meta-contents">
-      <p class="date-modified">February 24, 2023</p>
+      <p class="date-modified">March 24, 2023</p>
     </div>
   </div>
     
@@ -392,11 +412,11 @@ $ Time &lt;dbl&gt; 2011, 2011, 2011, 2011, 2011, 2011, 2011, 2011, 2011, 2011, 2
 Columns: 7
 $ PA               &lt;chr&gt; "ANG MO KIO", "ANG MO KIO", "ANG MO KIO", "ANG MO KIO…
 $ SZ               &lt;chr&gt; "ANG MO KIO TOWN CENTRE", "CHENG SAN", "CHONG BOON", …
-$ YOUNG            &lt;dbl&gt; 1300, 5640, 5080, 4590, 1900, 3320, 1920, 4220, 1070,…
-$ `ECONOMY ACTIVE` &lt;dbl&gt; 2780, 16400, 15040, 12950, 3620, 9080, 4460, 11930, 2…
+$ YOUNG            &lt;dbl&gt; 1440, 6660, 6150, 5500, 2130, 3970, 2220, 4720, 1190,…
+$ `ECONOMY ACTIVE` &lt;dbl&gt; 2640, 15380, 13970, 12040, 3390, 8430, 4160, 11430, 2…
 $ AGED             &lt;dbl&gt; 770, 6080, 6450, 5080, 1270, 3540, 1520, 5050, 740, 4…
 $ TOTAL            &lt;dbl&gt; 4850, 28120, 26570, 22620, 6790, 15940, 7900, 21200, …
-$ DEPENDENCY       &lt;dbl&gt; 0.7446043, 0.7146341, 0.7666223, 0.7467181, 0.8756906…</code></pre>
+$ DEPENDENCY       &lt;dbl&gt; 0.8371212, 0.8283485, 0.9019327, 0.8787375, 1.0029499…</code></pre>
 </div>
 </div>
 <p>Join the geographical data and attribute table using planning subzone name (e.g.&nbsp;SUBZONE_N and SZ) as the common identifier</p>
@@ -504,7 +524,7 @@ $ DEPENDENCY       &lt;dbl&gt; 0.7446043, 0.7146341, 0.7666223, 0.7467181, 0.875
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mpsz_pop2020<span class="sc">$</span>DEPENDENCY)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
- 0.0000  0.6540  0.7063  0.7712  0.7657 19.0000      92 </code></pre>
+ 0.0000  0.7113  0.7926  0.8561  0.8786 19.0000      92 </code></pre>
 </div>
 </div>
 <p>We set break point at 0.60, 0.70, 0.80, 0.90. Additionally, we set minimum to 0 and maximum to 100.</p>
