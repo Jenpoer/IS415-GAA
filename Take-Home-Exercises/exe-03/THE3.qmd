@@ -633,11 +633,15 @@ sf_hdb_resale_factors <- sf_hdb_resale_coords %>%
                   "WITHIN_1KM_PRIMARY_SCHOOL"))
 ```
 
+We can then save it into RDS format,
+
 ```{r}
 #| eval: false
 
 write_rds(sf_hdb_resale_factors, "data/rds/hdb_resale_factors.rds")
 ```
+
+and retrieve it when we need it!
 
 ```{r}
 sf_hdb_resale_factors <- read_rds("data/rds/hdb_resale_factors.rds")
