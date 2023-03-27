@@ -1,0 +1,258 @@
+---
+title: "In-Class Exercise 11: Spatial Interaction Models"
+format: html
+author: "Jennifer Poernomo"
+date: "27 March 2023"
+date-modified: "`r Sys.Date()`"
+execute: 
+  message: false
+  warning: false
+editor: visual
+---
+
+# Import Packages
+
+```{r}
+pacman::p_load(tmap, sf, sp, caret, stplanr, reshape2, broom, tidyverse)
+```
+
+# Import Data
+
+## Aspatial
+
+```{r}
+odbus <- read_csv("data/aspatial/origin_destination_bus_202210.csv")
+```
+
+```{r}
+pop <- read_csv("data/aspatial/pop.csv")
+```
+
+## Geospatial
+
+```{r}
+busstop <- st_read(dsn="data/geospatial", layer="BusStop") %>%
+  st_transform(crs=3414)
+```
+
+```{r}
+mpsz <- st_read(dsn="data/geospatial", layer="MPSZ-2019") %>%
+  st_transform(crs=3414)
+```
+
+# Data Preprocessing
+
+Convert the numerical data into nominal scale data.
+
+```{r}
+odbus$ORIGIN_PT_CODE <- as.factor(odbus$ORIGIN_PT_CODE)
+odbus$DESTINATION_PT_CODE <- as.factor(odbus$DESTINATION_PT_CODE)
+```
+
+Extract number of trips during morning peak hour on weekdays
+
+```{r}
+odbus7_9 <- odbus %>%
+  filter(DAY_TYPE == "WEEKDAY") %>%
+  filter(TIME_PER_HOUR >= 7 & TIME_PER_HOUR <= 9) %>%
+  group_by(ORIGIN_PT_CODE,
+           DESTINATION_PT_CODE) %>%
+  summarise(TRIPS = sum(TOTAL_TRIPS))
+```
+
+Combine MPSZ information into bus stop data
+
+```{r}
+busstop_mpsz <- st_intersection(busstop, mpsz) %>%
+  select(BUS_STOP_N, SUBZONE_C) %>%
+  st_drop_geometry()
+```
+
+It seems that 5 bus stops have vanished! This is because there are 5 stops in Johor.
+
+```{r}
+tmap_mode('view')
+tm_shape(busstop %>% filter(!(BUS_STOP_N %in% busstop_mpsz$BUS_STOP_N))) +
+  tm_dots(col="purple", alpha=0.4)
+```
+
+Now, we can append the planning subzone code onto the odbus7_9.
+
+```{r}
+od_data <- left_join(odbus7_9, busstop_mpsz,
+                     by = c("ORIGIN_PT_CODE" = "BUS_STOP_N")) %>%
+  rename(ORIGIN_BS = ORIGIN_PT_CODE,
+         ORIGIN_SZ = SUBZONE_C,
+         DESTIN_BS = DESTINATION_PT_CODE)
+```
+
+Check for duplicate records
+
+```{r}
+duplicate <- od_data %>%
+  group_by_all() %>%
+  filter(n()>1) %>%
+  ungroup()
+
+duplicate
+```
+
+It seems that there are 930 duplicated records. We can remove them.
+
+```{r}
+od_data <- unique(od_data)
+```
+
+Now, we can also join the destination subzone information.
+
+```{r}
+od_data <- left_join(od_data, busstop_mpsz, by = c("DESTIN_BS" = "BUS_STOP_N")) %>%
+  rename(DESTIN_SZ = SUBZONE_C)
+```
+
+```{r}
+duplicate2 <- od_data %>%
+  group_by_all() %>%
+  filter(n()>1) %>%
+  ungroup()
+
+duplicate2
+```
+
+We have 1216 duplicated records. We can remove them and also drop the NA records.
+
+```{r}
+od_data <- unique(od_data) %>%
+  drop_na()
+```
+
+## Visualise subzones
+
+```{r}
+tmap_mode("plot")
+qtm(mpsz)
+```
+
+```{r}
+mpsz <- mpsz[order(mpsz$SUBZONE_C),]
+head(mpsz,10)
+```
+
+## Calculate Distance Matrix
+
+If we're using sp, we can use spDists to calculate a distance matrix.
+
+```{r}
+mpsz_sp <- as(mpsz, "Spatial")
+dist <- spDists(mpsz_sp)
+```
+
+The distance matrix does not preserve the names of the subzones. As such, we can rename them with the subzone names.
+
+```{r}
+sz_names <- mpsz$SUBZONE_C
+```
+
+```{r}
+colnames(dist) <- sz_names
+rownames(dist) <- sz_names
+```
+
+We can pivot it into a longer form.
+
+```{r}
+distPair <- melt(dist) %>%
+  rename(dist = value)
+head(distPair, 10)
+```
+
+```{r}
+distPair %>%
+  filter(dist > 0) %>%
+  summary()
+```
+
+A constant distance value of 50m is added to the intra-zone distance. It's okay to put 50m because we have checked that the minimum distance between subzones are 173.8 m.
+
+```{r}
+distPair$dist <- ifelse(distPair$dist == 0, 50, distPair$dist)
+```
+
+```{r}
+distPair <- distPair %>%
+  rename(orig = Var1,
+         dest = Var2)
+```
+
+Lastly, we can save it into RDS format!
+
+```{r}
+#| eval: false
+write_rds(distPair, "data/rds/distPair.rds")
+write_rds(od_data, "data/rds/od_data.rds")
+```
+
+## Join Population Data with Subzones
+
+```{r}
+pop <- pop %>%
+  left_join(mpsz,
+            by = c("PA" = "PLN_AREA_N",
+                   "SZ" = "SUBZONE_N")) %>%
+  select(1:6) %>%
+  rename(SZ_NAME = SZ,
+         SZ = SUBZONE_C)
+```
+
+# Flow Analysis
+
+## Preparing data for flow analysis
+
+```{r}
+od_data <- read_rds("data/rds/od_data.rds")
+```
+
+We aggregate the data according to subzone.
+
+```{r}
+flow_data <- od_data %>%
+  group_by(ORIGIN_SZ, DESTIN_SZ) %>%
+  summarise(TRIPS = sum(TRIPS))
+```
+
+We need to update it with the distance information.
+
+```{r}
+flow_data1 <- flow_data %>%
+  left_join(distPair,
+            by = c("ORIGIN_SZ" = "orig",
+                   "DESTIN_SZ" = "dest"))
+```
+
+Now, we can update it with the population data as well.
+
+Origin:
+
+```{r}
+flow_data1 <- flow_data1 %>%
+  left_join(pop,
+            by = c(ORIGIN_SZ = "SZ")) %>% # join with the origin
+  rename(ORIGIN_AGE7_12 = AGE7_12,
+         ORIGIN_AGE13_24 = AGE13_24,
+         ORIGIN_AGE25_64 = AGE25_64) %>%
+  select(-c(PA, SZ_NAME))
+```
+
+Destination:
+
+```{r}
+flow_data1 <- flow_data1 %>%
+  left_join(pop,
+            by = c(DESTIN_SZ = "SZ")) %>% # join with the destination
+  rename(DESTIN_AGE7_12 = AGE7_12,
+         DESTIN_AGE13_24 = AGE13_24,
+         DESTIN_AGE25_64 = AGE25_64) %>%
+  select(-c(PA, SZ_NAME))
+```
+
+## Build Spatial Interaction Model

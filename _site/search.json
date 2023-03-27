@@ -1118,5 +1118,68 @@
     "title": "Take Home Exercise 3: Geographically Weighted Prediction of HDB Resale Prices",
     "section": "Evaluation",
     "text": "Evaluation\n\nOLS Multiple Linear Regression\nWe can use the predict.lm() function of the stats package to run inference on our test data and save it into RDS format.\n\n\nCode\nols_pred <- predict.lm(ols_price_mlr, test_data) %>%\n  write_rds(\"data/model/price_ols_pred.rds\")\n\n\n\n\nRandom Forest (RF)\nWe can use the predict() function of the ranger package to run inference on our test data and save it into RDS format.\n\n\nCode\nrf_pred <- predict(rf, test_data) %>%\n  write_rds(\"data/model/price_rf_pred.rds\")\n\n\n\n\nGeographically Weighted Random Forest (GWRF)\nTo call the predict function of the Geographically Weighted Random Forest, we need to drop the geometry in our column and bind the coordinates as normal columns.\n\n\nCode\ntest_data <- cbind(test_data, coords_test) %>% st_drop_geometry()\n\n\nAfterwards, we can predict prices for our test data using predict.grf() method!\n\n\nCode\ngwRF_pred <- predict.grf(gwRF_adaptive,\n                         test_data,\n                         x.var.name=\"X\",\n                         y.var.name=\"Y\",\n                         local.w=1,\n                         global.w=0)\n\nwrite_rds(gwRF_pred, \"data/model/price_gwrf_pred.rds\")\n\n\n\n\nPerformance Comparison\nLet’s join the resale price and predicted prices of each model into a single dataframe for easier processing.\n\n\nCode\nols_pred_df <- read_rds(\"data/model/price_ols_pred.rds\") %>%\n  as.data.frame()\n\ncolnames(ols_pred_df) <- c(\"ols_pred\")\n\nrf_pred_df <- read_rds(\"data/model/price_rf_pred.rds\")$predictions %>%\n  as.data.frame()\n\ncolnames(rf_pred_df) <- c(\"rf_pred\")\n\ngwRF_pred_df <- read_rds(\"data/model/price_gwrf_pred.rds\") %>%\n  as.data.frame()\n\ncolnames(gwRF_pred_df) <- c(\"gwrf_pred\")\n\nprices_pred_df <- cbind(test_data$resale_price, ols_pred_df, rf_pred_df,\n                        gwRF_pred_df) %>% \n  rename(\"actual_price\" = \"test_data$resale_price\")\n\nhead(prices_pred_df)\n\n\n  actual_price ols_pred  rf_pred gwrf_pred\n1       380000 328926.6 344170.6  356224.9\n2       380000 339528.1 345553.3  352958.2\n3       635000 538453.3 553103.3  554562.3\n4       365000 357733.7 354576.1  365821.0\n5       418000 368335.2 363729.4  368947.0\n6       380000 327505.5 308867.9  317648.3\n\n\nRoot Mean Square Error for OLS Multiple Linear Regression:\n\n\nCode\nsqrt(mean((prices_pred_df$actual_price - prices_pred_df$ols_pred)^2))\n\n\n[1] 58703.9\n\n\nRoot Mean Square Error for global Random Forest:\n\n\nCode\nsqrt(mean((prices_pred_df$actual_price - prices_pred_df$rf_pred)^2))\n\n\n[1] 37327.6\n\n\nRoot Mean Square Error for Geographically Weighted Random Forest:\n\n\nCode\nsqrt(mean((prices_pred_df$actual_price - prices_pred_df$gwrf_pred)^2))\n\n\n[1] 32736.84\n\n\nWe observe that the Geographically Weighted Random Forest performs the best on data it has never seen before, having the smallest root mean square error between the prediction and the actual prices. On the other hand, OLS Multiple Linear Regression performs the worst. This might be because it underfits the data, being too simple to capture the underlying distribution of the resale prices."
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "",
+    "text": "pacman::p_load(tmap, sf, sp, caret, stplanr, reshape2, broom, tidyverse)"
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html#aspatial",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html#aspatial",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "Aspatial",
+    "text": "Aspatial\n\nodbus <- read_csv(\"data/aspatial/origin_destination_bus_202210.csv\")\n\n\npop <- read_csv(\"data/aspatial/pop.csv\")"
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html#geospatial",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html#geospatial",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "Geospatial",
+    "text": "Geospatial\n\nbusstop <- st_read(dsn=\"data/geospatial\", layer=\"BusStop\") %>%\n  st_transform(crs=3414)\n\nReading layer `BusStop' from data source \n  `C:\\Jenpoer\\IS415-GAA\\In-Class-Exercises\\chapter-15\\data\\geospatial' \n  using driver `ESRI Shapefile'\nSimple feature collection with 5159 features and 3 fields\nGeometry type: POINT\nDimension:     XY\nBounding box:  xmin: 3970.122 ymin: 26482.1 xmax: 48284.56 ymax: 52983.82\nProjected CRS: SVY21\n\n\n\nmpsz <- st_read(dsn=\"data/geospatial\", layer=\"MPSZ-2019\") %>%\n  st_transform(crs=3414)\n\nReading layer `MPSZ-2019' from data source \n  `C:\\Jenpoer\\IS415-GAA\\In-Class-Exercises\\chapter-15\\data\\geospatial' \n  using driver `ESRI Shapefile'\nSimple feature collection with 332 features and 6 fields\nGeometry type: MULTIPOLYGON\nDimension:     XY\nBounding box:  xmin: 103.6057 ymin: 1.158699 xmax: 104.0885 ymax: 1.470775\nGeodetic CRS:  WGS 84"
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/data/geospatial/MPSZ-2019.html",
+    "href": "In-Class-Exercises/chapter-15/data/geospatial/MPSZ-2019.html",
+    "title": "IS415-GAA",
+    "section": "",
+    "text": "<!DOCTYPE qgis PUBLIC ‘http://mrcc.com/qgis.dtd’ ‘SYSTEM’>     dataset\n\n\n        0 0     false"
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html#visualise-subzones",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html#visualise-subzones",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "Visualise subzones",
+    "text": "Visualise subzones\n\ntmap_mode(\"plot\")\nqtm(mpsz)\n\n\n\n\n\nmpsz <- mpsz[order(mpsz$SUBZONE_C),]\nhead(mpsz,10)\n\nSimple feature collection with 10 features and 6 fields\nGeometry type: MULTIPOLYGON\nDimension:     XY\nBounding box:  xmin: 26154.57 ymin: 37511.2 xmax: 31072.47 ymax: 41804.65\nProjected CRS: SVY21 / Singapore TM\n                 SUBZONE_N SUBZONE_C PLN_AREA_N PLN_AREA_C          REGION_N\n171 ANG MO KIO TOWN CENTRE    AMSZ01 ANG MO KIO         AM NORTH-EAST REGION\n170              CHENG SAN    AMSZ02 ANG MO KIO         AM NORTH-EAST REGION\n163             CHONG BOON    AMSZ03 ANG MO KIO         AM NORTH-EAST REGION\n330             TOWNSVILLE    AMSZ04 ANG MO KIO         AM NORTH-EAST REGION\n329             SHANGRI-LA    AMSZ05 ANG MO KIO         AM NORTH-EAST REGION\n172            KEBUN BAHRU    AMSZ06 ANG MO KIO         AM NORTH-EAST REGION\n233        SEMBAWANG HILLS    AMSZ07 ANG MO KIO         AM NORTH-EAST REGION\n254                 TAGORE    AMSZ08 ANG MO KIO         AM NORTH-EAST REGION\n242      YIO CHU KANG WEST    AMSZ09 ANG MO KIO         AM NORTH-EAST REGION\n252           YIO CHU KANG    AMSZ10 ANG MO KIO         AM NORTH-EAST REGION\n    REGION_C                       geometry\n171      NER MULTIPOLYGON (((29692.8 389...\n170      NER MULTIPOLYGON (((30384.33 39...\n163      NER MULTIPOLYGON (((30676.17 39...\n330      NER MULTIPOLYGON (((29649.88 38...\n329      NER MULTIPOLYGON (((28228.2 392...\n172      NER MULTIPOLYGON (((28491.21 39...\n233      NER MULTIPOLYGON (((27744.03 38...\n254      NER MULTIPOLYGON (((27193.46 41...\n242      NER MULTIPOLYGON (((29269.91 39...\n252      NER MULTIPOLYGON (((29598.36 39..."
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html#calculate-distance-matrix",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html#calculate-distance-matrix",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "Calculate Distance Matrix",
+    "text": "Calculate Distance Matrix\nIf we’re using sp, we can use spDists to calculate a distance matrix.\n\nmpsz_sp <- as(mpsz, \"Spatial\")\ndist <- spDists(mpsz_sp)\n\nThe distance matrix does not preserve the names of the subzones. As such, we can rename them with the subzone names.\n\nsz_names <- mpsz$SUBZONE_C\n\n\ncolnames(dist) <- sz_names\nrownames(dist) <- sz_names\n\nWe can pivot it into a longer form.\n\ndistPair <- melt(dist) %>%\n  rename(dist = value)\nhead(distPair, 10)\n\n     Var1   Var2      dist\n1  AMSZ01 AMSZ01    0.0000\n2  AMSZ02 AMSZ01  810.4491\n3  AMSZ03 AMSZ01 1360.9294\n4  AMSZ04 AMSZ01  840.4432\n5  AMSZ05 AMSZ01 1076.7916\n6  AMSZ06 AMSZ01  805.2979\n7  AMSZ07 AMSZ01 1798.7526\n8  AMSZ08 AMSZ01 2576.0199\n9  AMSZ09 AMSZ01 1204.2846\n10 AMSZ10 AMSZ01 1417.8035\n\n\n\ndistPair %>%\n  filter(dist > 0) %>%\n  summary()\n\n      Var1             Var2             dist        \n AMSZ01 :   331   AMSZ01 :   331   Min.   :  173.8  \n AMSZ02 :   331   AMSZ02 :   331   1st Qu.: 7149.5  \n AMSZ03 :   331   AMSZ03 :   331   Median :11890.0  \n AMSZ04 :   331   AMSZ04 :   331   Mean   :12229.4  \n AMSZ05 :   331   AMSZ05 :   331   3rd Qu.:16401.7  \n AMSZ06 :   331   AMSZ06 :   331   Max.   :49894.4  \n (Other):107906   (Other):107906                    \n\n\nA constant distance value of 50m is added to the intra-zone distance. It’s okay to put 50m because we have checked that the minimum distance between subzones are 173.8 m.\n\ndistPair$dist <- ifelse(distPair$dist == 0, 50, distPair$dist)\n\n\ndistPair <- distPair %>%\n  rename(orig = Var1,\n         dest = Var2)\n\nLastly, we can save it into RDS format!\n\nwrite_rds(distPair, \"data/rds/distPair.rds\")\nwrite_rds(od_data, \"data/rds/od_data.rds\")"
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html#join-population-data-with-subzones",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html#join-population-data-with-subzones",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "Join Population Data with Subzones",
+    "text": "Join Population Data with Subzones\n\npop <- pop %>%\n  left_join(mpsz,\n            by = c(\"PA\" = \"PLN_AREA_N\",\n                   \"SZ\" = \"SUBZONE_N\")) %>%\n  select(1:6) %>%\n  rename(SZ_NAME = SZ,\n         SZ = SUBZONE_C)"
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html#preparing-data-for-flow-analysis",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html#preparing-data-for-flow-analysis",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "Preparing data for flow analysis",
+    "text": "Preparing data for flow analysis\n\nod_data <- read_rds(\"data/rds/od_data.rds\")\n\nWe aggregate the data according to subzone.\n\nflow_data <- od_data %>%\n  group_by(ORIGIN_SZ, DESTIN_SZ) %>%\n  summarise(TRIPS = sum(TRIPS))\n\nWe need to update it with the distance information.\n\nflow_data1 <- flow_data %>%\n  left_join(distPair,\n            by = c(\"ORIGIN_SZ\" = \"orig\",\n                   \"DESTIN_SZ\" = \"dest\"))\n\nNow, we can update it with the population data as well.\nOrigin:\n\nflow_data1 <- flow_data1 %>%\n  left_join(pop,\n            by = c(ORIGIN_SZ = \"SZ\")) %>% # join with the origin\n  rename(ORIGIN_AGE7_12 = AGE7_12,\n         ORIGIN_AGE13_24 = AGE13_24,\n         ORIGIN_AGE25_64 = AGE25_64) %>%\n  select(-c(PA, SZ_NAME))\n\nDestination:\n\nflow_data1 <- flow_data1 %>%\n  left_join(pop,\n            by = c(DESTIN_SZ = \"SZ\")) %>% # join with the destination\n  rename(DESTIN_AGE7_12 = AGE7_12,\n         DESTIN_AGE13_24 = AGE13_24,\n         DESTIN_AGE25_64 = AGE25_64) %>%\n  select(-c(PA, SZ_NAME))"
+  },
+  {
+    "objectID": "In-Class-Exercises/chapter-15/ICE11.html#build-spatial-interaction-model",
+    "href": "In-Class-Exercises/chapter-15/ICE11.html#build-spatial-interaction-model",
+    "title": "In-Class Exercise 11: Spatial Interaction Models",
+    "section": "Build Spatial Interaction Model",
+    "text": "Build Spatial Interaction Model"
   }
 ]
