@@ -254,5 +254,3 @@ flow_data1 <- flow_data1 %>%
          DESTIN_AGE25_64 = AGE25_64) %>%
   select(-c(PA, SZ_NAME))
 ```
-
-## Build Spatial Interaction Model

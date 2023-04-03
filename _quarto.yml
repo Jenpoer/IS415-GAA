@@ -43,6 +43,8 @@ website:
             href: "In-Class-Exercises/chapter-16/ICE10.qmd"
           - text: "Week 12"
             href: "In-Class-Exercises/chapter-15/ICE11.qmd"
+          - text: "Week 13"
+            href: "In-Class-Exercises/chapter-15/ICE12.qmd"
       - text: "Take Home Exercises"
         menu:
           - text: "Exercise 1"
